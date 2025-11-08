@@ -26,7 +26,7 @@ Run this file directly to launch the application:
 from PyQt6 import uic
 from PyQt6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QIcon
 import sys
 import os
 from pathlib import Path
@@ -190,6 +190,11 @@ class GreaseAnalyzerApp(QMainWindow):
         and configures display areas for graphs and text.
         """
         self.setWindowTitle("Grease Analyzer - PyQt6 Edition")
+        
+        # Set application icon/logo
+        logo_path = Path(__file__).parent / "GUI" / "logo.png"
+        if logo_path.exists():
+            self.setWindowIcon(QIcon(str(logo_path)))
         
         # Replace the QLabel "display" with matplotlib FigureCanvas for interactive graphs
         self.setup_matplotlib_canvas()
@@ -1077,10 +1082,25 @@ def main():
     and starts the event loop. Sets Fusion style for consistent
     cross-platform appearance.
     """
+    # Set App User Model ID for Windows taskbar (must be before QApplication)
+    import platform
+    if platform.system() == 'Windows':
+        try:
+            import ctypes
+            # Set a unique app ID so Windows doesn't group it with Python
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('YCP.GreaseAnalyzer.1.0')
+        except:
+            pass
+    
     app = QApplication(sys.argv)
     
     # Set Fusion style for modern appearance (optional)
     app.setStyle('Fusion')
+    
+    # Set application icon (for taskbar and window)
+    logo_path = Path(__file__).parent / "GUI" / "logo.png"
+    if logo_path.exists():
+        app.setWindowIcon(QIcon(str(logo_path)))
     
     # Create and show main window
     window = GreaseAnalyzerApp()
