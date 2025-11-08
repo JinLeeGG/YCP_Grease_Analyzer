@@ -817,9 +817,9 @@ class GreaseAnalyzerApp(QMainWindow):
                 sample['name']
             )
             
-            # Prepare filename with configured format
+            # Prepare filename with configured format (just use sample name)
             base_name = sample['name'].rsplit('.', 1)[0] if '.' in sample['name'] else sample['name']
-            filename = f"{base_name}_vs_baseline.{self.image_format}"
+            filename = f"{base_name}.{self.image_format}"
             file_path = os.path.join(self.save_directory, filename)
             
             # Save with appropriate settings for the format
@@ -878,9 +878,9 @@ class GreaseAnalyzerApp(QMainWindow):
                     sample['name']
                 )
                 
-                # Prepare filename with configured format
+                # Prepare filename with configured format (just use sample name)
                 base_name = sample['name'].rsplit('.', 1)[0] if '.' in sample['name'] else sample['name']
-                graph_path = os.path.join(self.save_directory, f"{base_name}_vs_baseline.{self.image_format}")
+                graph_path = os.path.join(self.save_directory, f"{base_name}.{self.image_format}")
                 
                 # Save with appropriate settings for the format
                 if self.image_format == 'jpg':
