@@ -22,10 +22,10 @@ GRAPH_CONFIG = {
     'figsize': (12, 7),              # Figure dimensions in inches (width, height)
     'dpi': 300,                       # Resolution for saved images (dots per inch)
     'baseline_color': 'green',        # Color for baseline data line
-    'baseline_linewidth': 2.5,        # Thickness of baseline line
+    'baseline_linewidth': 1.0,        # Thickness of baseline line
     'baseline_alpha': 0.9,            # Transparency of baseline line (0=transparent, 1=opaque)
     'sample_color': 'blue',           # Color for sample data line
-    'sample_linewidth': 1.8,          # Thickness of sample line
+    'sample_linewidth': 1.0,          # Thickness of sample line
     'sample_alpha': 0.85,             # Transparency of sample line
     'grid_alpha': 0.3,                # Transparency of grid lines
     'grid_linestyle': '--',           # Grid line style (dashed)
