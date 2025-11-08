@@ -528,6 +528,37 @@ QSplitter::handle:hover {
                <height>30</height>
               </size>
              </property>
+             <property name="styleSheet">
+              <string notr="true">
+QPushButton {
+    background: rgb(38, 52, 66);
+    border: 2px solid rgb(50, 68, 85);
+    border-radius: 8px;
+    color: rgb(220, 225, 230);
+    font: 13pt &quot;Roboto&quot;;
+    padding: 8px;
+}
+
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 rgb(50, 85, 100),
+                                stop:1 rgb(75, 115, 130));
+    border: 2px solid rgb(75, 115, 130);
+}
+
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 rgb(40, 70, 85),
+                                stop:1 rgb(55, 90, 105));
+}
+
+QPushButton:disabled {
+    background: rgb(30, 35, 40);
+    color: rgb(90, 95, 100);
+    border: 2px solid rgb(45, 50, 55);
+}
+              </string>
+             </property>
              <property name="text">
               <string> Generate Summary</string>
              </property>
@@ -551,7 +582,7 @@ QProgressBar::chunk {
               <bool>true</bool>
              </property>
              <property name="format">
-              <string>Analyzing...</string>
+              <string>%p% Complete</string>
              </property>
             </widget>
            </item>
