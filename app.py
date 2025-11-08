@@ -211,7 +211,8 @@ class GreaseAnalyzerApp(QMainWindow):
         self.comboBox.addItem("No samples loaded")
         
         # Display AI model configuration information
-        self.aiModelInfo.setText(f"Model: {LLM_CONFIG['model']} (Parallel: {LLM_CONFIG['max_workers']} workers)")
+        model_name = LLM_CONFIG['model'].replace('llava:', 'LLaVA ').replace('-q4_K_M', ' Q4')
+        self.aiModelInfo.setText(f"Model: {model_name} (Parallel: {LLM_CONFIG['max_workers']} workers)")
         
     def connect_signals(self):
         """
@@ -516,6 +517,8 @@ class GreaseAnalyzerApp(QMainWindow):
         samples_data = []
         for sample in self.sample_data_list:
             samples_data.append({
+                'baseline_df': self.baseline_data,  # Pass DataFrame for peak analysis
+                'sample_df': sample['data'],         # Pass DataFrame for peak analysis
                 'baseline_stats': sample['baseline_stats'],
                 'sample_stats': sample['stats'],
                 'comparison': sample['comparison'],
