@@ -52,6 +52,8 @@ class GraphGenerator:
         # Configure matplotlib fonts (Unicode support)
         plt.rcParams['font.family'] = 'sans-serif'
         plt.rcParams['axes.unicode_minus'] = False
+        # Enable grid by default
+        plt.rcParams['axes.grid'] = True
     
     def create_overlay_graph(self, 
                            baseline_df: pd.DataFrame,
@@ -141,6 +143,7 @@ class GraphGenerator:
         Returns:
             matplotlib.figure.Figure object
         """
+        # Create figure and axes with configured size
         fig, ax = plt.subplots(figsize=self.config['figsize'])
         
         # Remove .csv extension from name for cleaner legend
@@ -218,8 +221,8 @@ class GraphGenerator:
         y_ticks = np.arange(y_start, y_end + 0.1, 0.5)
         ax.set_yticks(y_ticks)
         
-        # No grid - clean FTIR appearance
-        ax.grid(False)
+        # Enable grid for easier reading
+        ax.grid(True, alpha=0.3, linestyle='--')
         
         # Add legend at bottom center, outside plot area (standard FTIR placement)
         ax.legend(

@@ -33,6 +33,8 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 # Import project modules
 from modules.csv_processor import CSVProcessor
@@ -162,6 +164,7 @@ class GreaseAnalyzerApp(QMainWindow):
         self.current_sample_index: int = 0                  # Currently displayed sample
         self.analysis_results: Dict = {}                    # LLM analysis results
         self.current_graph_path: Optional[str] = None       # Path to displayed graph image
+        self.current_figure = None                          # Current matplotlib figure for canvas
         
         # Export settings
         self.save_directory: str = EXPORT_SETTINGS['save_directory']  # Directory for saving graphs
@@ -188,10 +191,8 @@ class GreaseAnalyzerApp(QMainWindow):
         """
         self.setWindowTitle("Grease Analyzer - PyQt6 Edition")
         
-        # Configure the display QLabel for graph visualization
-        # setScaledContents(False) means we manually handle scaling for better quality
-        self.display.setScaledContents(False)
-        self.display.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Replace the QLabel "display" with matplotlib FigureCanvas for interactive graphs
+        self.setup_matplotlib_canvas()
         
         # Set initial status messages
         self.status_inf.setText("STATUS: Ready to analyze data")
@@ -229,6 +230,64 @@ class GreaseAnalyzerApp(QMainWindow):
         
         # Set default splitter sizes
         self.set_default_splitter_sizes()
+    
+    def setup_matplotlib_canvas(self):
+        """
+        Setup Interactive Matplotlib Canvas with Zoom/Pan Controls
+        
+        Replaces the QLabel "display" widget with a matplotlib FigureCanvas
+        that provides built-in interactive features:
+        - Zoom: Click and drag to create zoom rectangle
+        - Pan: Right-click and drag to pan around
+        - Navigation toolbar: Home, Back, Forward, Pan, Zoom, Save buttons
+        """
+        # Remove the old QLabel widget
+        old_display = self.display
+        display_layout = old_display.parent().layout()
+        
+        # Create matplotlib figure and canvas
+        from matplotlib.figure import Figure
+        self.figure = Figure(figsize=(8, 6), facecolor='white')
+        self.canvas = FigureCanvas(self.figure)
+        
+        # Create navigation toolbar for zoom/pan controls
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        
+        # Style the toolbar to match dark theme
+        self.toolbar.setStyleSheet("""
+            QToolBar {
+                background: rgb(38, 52, 66);
+                border: 2px solid rgb(50, 68, 85);
+                border-radius: 5px;
+                spacing: 3px;
+                padding: 3px;
+            }
+            QToolButton {
+                background: rgb(38, 52, 66);
+                border: 1px solid rgb(50, 68, 85);
+                border-radius: 3px;
+                color: rgb(220, 225, 230);
+                padding: 5px;
+            }
+            QToolButton:hover {
+                background: rgb(85, 105, 75);
+                border: 1px solid rgb(100, 130, 80);
+            }
+            QToolButton:pressed {
+                background: rgb(70, 90, 60);
+            }
+        """)
+        
+        # Remove old widget and add canvas with toolbar
+        display_layout.removeWidget(old_display)
+        old_display.deleteLater()
+        
+        # Add toolbar and canvas to the layout
+        display_layout.addWidget(self.toolbar)
+        display_layout.addWidget(self.canvas)
+        
+        # Store reference for later use
+        self.display = self.canvas
         
     def set_default_splitter_sizes(self):
         """
@@ -500,19 +559,11 @@ class GreaseAnalyzerApp(QMainWindow):
                 sample['name']
             )
             
-            # Save to temporary file for display
-            import tempfile
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(temp_dir, f"grease_graph_{sample['name']}.png")
+            # Store the figure for export functionality
+            self.current_figure = fig
             
-            fig.savefig(temp_path, dpi=300, bbox_inches='tight')
-            plt.close(fig)  # Release memory
-            
-            # Store path for later use (resizing, saving)
-            self.current_graph_path = temp_path
-            
-            # Display the graph in UI
-            self.update_graph_display()
+            # Display the graph directly on canvas (interactive with zoom/pan)
+            self.update_graph_display(fig)
             self.status_inf.setText(f"STATUS: Displaying {sample['name']}")
             
         except Exception as e:
@@ -521,24 +572,70 @@ class GreaseAnalyzerApp(QMainWindow):
             traceback.print_exc()
             self.status_inf.setText("STATUS: Error displaying graph")
     
-    def update_graph_display(self):
+    def update_graph_display(self, fig=None):
         """
-        Update Graph Display to Fit Current Window Size
+        Update Graph Display on Canvas
         
-        Loads the graph image and scales it to fit the display area
-        while maintaining aspect ratio. Called when:
-        - New sample is selected
-        - Window is resized
+        Displays the matplotlib figure on the interactive canvas.
+        The canvas provides built-in zoom and pan functionality.
+        
+        Args:
+            fig: matplotlib Figure object to display (optional, uses current if None)
         """
-        if self.current_graph_path and os.path.exists(self.current_graph_path):
-            pixmap = QPixmap(self.current_graph_path)
-            # Scale to fit display area while preserving aspect ratio
-            scaled_pixmap = pixmap.scaled(
-                self.display.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            self.display.setPixmap(scaled_pixmap)
+        if fig is None:
+            fig = self.current_figure
+            
+        if fig is None:
+            return
+            
+        # Clear the current canvas
+        self.figure.clear()
+        
+        # Copy the axes from the generated figure to our canvas figure
+        for ax_src in fig.get_axes():
+            ax_dest = self.figure.add_subplot(111)
+            
+            # Copy all lines and their properties
+            for line in ax_src.get_lines():
+                ax_dest.plot(line.get_xdata(), line.get_ydata(),
+                           color=line.get_color(),
+                           linewidth=line.get_linewidth(),
+                           alpha=line.get_alpha(),
+                           label=line.get_label())
+            
+            # Copy axis labels and title
+            ax_dest.set_xlabel(ax_src.get_xlabel(), fontsize=12, color='black')
+            ax_dest.set_ylabel(ax_src.get_ylabel(), fontsize=12, color='black')
+            ax_dest.set_title(ax_src.get_title(), fontsize=14, fontweight='bold', color='black')
+            
+            # Copy legend
+            if ax_src.get_legend():
+                ax_dest.legend(loc='best', framealpha=0.9, fontsize=10)
+            
+            # Copy grid settings from source
+            if len(ax_src.get_xgridlines()) > 0:
+                # Grid exists in source, enable it with same style
+                ax_dest.grid(True, alpha=0.3, linestyle='--')
+            
+            # Set axis limits
+            ax_dest.set_xlim(ax_src.get_xlim())
+            ax_dest.set_ylim(ax_src.get_ylim())
+            
+            # Style for white background
+            ax_dest.set_facecolor('white')
+            ax_dest.tick_params(colors='black', labelsize=10)
+            for spine in ax_dest.spines.values():
+                spine.set_edgecolor('black')
+        
+        # Update the canvas figure background
+        self.figure.patch.set_facecolor('white')
+        self.figure.tight_layout()
+        
+        # Refresh the canvas to show the new graph
+        self.canvas.draw()
+        
+        # Close the original figure to free memory
+        plt.close(fig)
     
     def generate_analysis(self):
         """
