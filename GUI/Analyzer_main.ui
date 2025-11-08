@@ -834,7 +834,7 @@ border: none;
             </item>
            </layout>
           </widget>
-          <widget class="QFrame" name="aiSummaryFrame">
+          <widget class="QSplitter" name="aiHorizontalSplitter">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
              <horstretch>0</horstretch>
@@ -855,140 +855,321 @@ border: none;
            </property>
            <property name="styleSheet">
             <string notr="true">
+QSplitter::handle {
+    background: rgb(40, 55, 68);
+    margin-left: 10px;
+    margin-right: 10px;
+}
+QSplitter::handle:hover {
+    background: rgb(100, 130, 80);
+}
+            </string>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="handleWidth">
+            <number>4</number>
+           </property>
+           <property name="childrenCollapsible">
+            <bool>true</bool>
+           </property>
+           <widget class="QFrame" name="aiSummaryFrame">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">
 #aiSummaryFrame {
     background: rgb(32, 44, 56);
     border: 2px solid rgb(50, 75, 90);
     border-radius: 10px;
 }
-           </string>
-           </property>
-           <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
-           </property>
-           <layout class="QVBoxLayout" name="aiSummaryLayout">
-            <property name="spacing">
-             <number>10</number>
+            </string>
             </property>
-            <property name="leftMargin">
-             <number>15</number>
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
             </property>
-            <property name="topMargin">
-             <number>15</number>
-            </property>
-            <property name="rightMargin">
-             <number>15</number>
-            </property>
-            <property name="bottomMargin">
-             <number>15</number>
-            </property>
-            <item>
-             <layout class="QHBoxLayout" name="summaryHeaderLayout">
-              <item>
-               <widget class="QLabel" name="aiSummaryTitle">
-                <property name="font">
-                 <font>
-                  <family>Roboto</family>
-                  <pointsize>14</pointsize>
-                  <italic>false</italic>
-                  <bold>false</bold>
-                 </font>
-                </property>
-                <property name="styleSheet">
-                 <string notr="true">color: rgb(100, 140, 130);</string>
-                </property>
-                <property name="text">
-                 <string>AI-Generated Summary</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <spacer name="horizontalSpacer">
-                <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
-                </property>
-                <property name="sizeHint" stdset="0">
-                 <size>
-                  <width>40</width>
-                  <height>20</height>
-                 </size>
-                </property>
-               </spacer>
-              </item>
-             </layout>
-            </item>
-            <item>
-             <widget class="QScrollArea" name="summaryScrollArea">
-              <property name="styleSheet">
-               <string notr="true">
+            <layout class="QVBoxLayout" name="aiSummaryLayout">
+             <property name="spacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>15</number>
+             </property>
+             <property name="topMargin">
+              <number>15</number>
+             </property>
+             <property name="rightMargin">
+              <number>15</number>
+             </property>
+             <property name="bottomMargin">
+              <number>15</number>
+             </property>
+             <item>
+              <layout class="QHBoxLayout" name="summaryHeaderLayout">
+               <item>
+                <widget class="QLabel" name="aiSummaryTitle">
+                 <property name="font">
+                  <font>
+                   <family>Roboto</family>
+                   <pointsize>14</pointsize>
+                   <italic>false</italic>
+                   <bold>false</bold>
+                  </font>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">color: rgb(100, 140, 130);</string>
+                 </property>
+                 <property name="text">
+                  <string>AI-Generated Summary</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="horizontalSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>40</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <widget class="QScrollArea" name="summaryScrollArea">
+               <property name="styleSheet">
+                <string notr="true">
 QScrollArea {
     background: transparent;
     border: none;
 }
-              </string>
-              </property>
-              <property name="widgetResizable">
-               <bool>true</bool>
-              </property>
-              <widget class="QWidget" name="scrollAreaWidgetContents">
-               <property name="geometry">
-                <rect>
-                 <x>0</x>
-                 <y>0</y>
-                 <width>685</width>
-                 <height>234</height>
-                </rect>
+               </string>
                </property>
-               <layout class="QVBoxLayout" name="scrollLayout">
-                <property name="leftMargin">
-                 <number>5</number>
+               <property name="widgetResizable">
+                <bool>true</bool>
+               </property>
+               <widget class="QWidget" name="scrollAreaWidgetContents">
+                <property name="geometry">
+                 <rect>
+                  <x>0</x>
+                  <y>0</y>
+                  <width>313</width>
+                  <height>234</height>
+                 </rect>
                 </property>
-                <property name="topMargin">
-                 <number>5</number>
-                </property>
-                <property name="rightMargin">
-                 <number>5</number>
-                </property>
-                <property name="bottomMargin">
-                 <number>5</number>
-                </property>
-                <item>
-                 <widget class="QLabel" name="aiSummaryText">
-                  <property name="font">
-                   <font>
-                    <family>Roboto</family>
-                    <pointsize>14</pointsize>
-                    <italic>false</italic>
-                    <bold>false</bold>
-                   </font>
-                  </property>
-                  <property name="styleSheet">
-                   <string notr="true">
+                <layout class="QVBoxLayout" name="scrollLayout">
+                 <property name="leftMargin">
+                  <number>5</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>5</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>5</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>5</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="aiSummaryText">
+                   <property name="font">
+                    <font>
+                     <family>Roboto</family>
+                     <pointsize>14</pointsize>
+                     <italic>false</italic>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="styleSheet">
+                    <string notr="true">
 color: rgb(210, 210, 210);
 background: transparent;
 padding: 5px;
-                  
+                   
 
 </string>
-                  </property>
-                  <property name="text">
-                   <string>No summary generated yet. Click &quot;Generate Summary&quot; to analyze your data with AI.</string>
-                  </property>
-                  <property name="alignment">
-                   <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-                  </property>
-                  <property name="wordWrap">
-                   <bool>true</bool>
-                  </property>
-                  <property name="textInteractionFlags">
-                   <set>Qt::TextSelectableByMouse</set>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
+                   </property>
+                   <property name="text">
+                    <string>No summary generated yet. Click &quot;Generate Summary&quot; to analyze your data with AI.</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+                   </property>
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
+                   <property name="textInteractionFlags">
+                    <set>Qt::TextSelectableByMouse</set>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
               </widget>
-             </widget>
-            </item>
-           </layout>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QFrame" name="aiChatFrame">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">
+#aiChatFrame {
+    background: rgb(32, 44, 56);
+    border: 2px solid rgb(50, 75, 90);
+    border-radius: 10px;
+}
+
+QTextEdit {
+    background: rgb(24, 34, 44);
+    border: 1px solid rgb(45, 60, 75);
+    border-radius: 6px;
+    color: rgb(220, 225, 230);
+    font: 11pt &quot;Roboto&quot;;
+    padding: 8px;
+}
+
+QLineEdit {
+    background: rgb(38, 52, 66);
+    border: 2px solid rgb(50, 68, 85);
+    border-radius: 6px;
+    color: rgb(220, 225, 230);
+    font: 11pt &quot;Roboto&quot;;
+    padding: 8px;
+}
+
+QLineEdit:focus {
+    border: 2px solid rgb(100, 130, 80);
+}
+            </string>
+            </property>
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <layout class="QVBoxLayout" name="aiChatLayout">
+             <property name="spacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>15</number>
+             </property>
+             <property name="topMargin">
+              <number>15</number>
+             </property>
+             <property name="rightMargin">
+              <number>15</number>
+             </property>
+             <property name="bottomMargin">
+              <number>15</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="aiChatTitle">
+               <property name="font">
+                <font>
+                 <family>Roboto</family>
+                 <pointsize>14</pointsize>
+                 <italic>false</italic>
+                 <bold>false</bold>
+                </font>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">color: rgb(100, 140, 130);</string>
+               </property>
+               <property name="text">
+                <string>AI Chat Assistant</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QTextEdit" name="chatDisplay">
+               <property name="readOnly">
+                <bool>true</bool>
+               </property>
+               <property name="placeholderText">
+                <string>Chat history will appear here...</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="chatInputLayout">
+               <property name="spacing">
+                <number>8</number>
+               </property>
+               <item>
+                <widget class="QLineEdit" name="chatInput">
+                 <property name="placeholderText">
+                  <string>Ask questions about your data analysis...</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btn_send_message">
+                 <property name="minimumSize">
+                  <size>
+                   <width>80</width>
+                   <height>35</height>
+                  </size>
+                 </property>
+                 <property name="maximumSize">
+                  <size>
+                   <width>80</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">
+QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 rgb(50, 85, 100),
+                                stop:1 rgb(75, 115, 130));
+    border: 2px solid rgb(75, 115, 130);
+    border-radius: 6px;
+    color: rgb(220, 225, 230);
+    font: 11pt &quot;Roboto&quot;;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 rgb(60, 95, 110),
+                                stop:1 rgb(85, 125, 140));
+}
+
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 rgb(40, 70, 85),
+                                stop:1 rgb(55, 90, 105));
+}
+
+QPushButton:disabled {
+    background: rgb(30, 35, 40);
+    color: rgb(90, 95, 100);
+    border: 2px solid rgb(45, 50, 55);
+}
+                  </string>
+                 </property>
+                 <property name="text">
+                  <string>Send</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </widget>
           </widget>
          </widget>
         </item>
