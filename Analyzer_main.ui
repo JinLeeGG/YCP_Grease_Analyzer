@@ -1,0 +1,970 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1148</width>
+    <height>826</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Data Analyzer</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">
+QMainWindow {
+    background: rgb(28, 38, 48);
+}
+
+QWidget#centralwidget {
+    background: rgb(28, 38, 48);
+}
+
+QLabel {
+    color: rgb(220, 225, 230);
+    font: 14pt &quot;Roboto&quot;;
+}
+
+QPushButton {
+    background: rgb(38, 52, 66);
+    border: 2px solid rgb(50, 68, 85);
+    border-radius: 8px;
+    color: rgb(220, 225, 230);
+    font: 13pt &quot;Roboto&quot;;
+    padding: 8px;
+    min-height: 40px;
+}
+
+QPushButton:hover {
+    background: rgb(85, 105, 75);
+    border: 2px solid rgb(100, 130, 80);
+}
+
+QPushButton:pressed {
+    background: rgb(70, 90, 60);
+}
+
+QPushButton:disabled {
+    background: rgb(30, 35, 40);
+    color: rgb(90, 95, 100);
+    border: 2px solid rgb(45, 50, 55);
+}
+
+QComboBox {
+    background: rgb(38, 52, 66);
+    border: 2px solid rgb(50, 68, 85);
+    border-radius: 6px;
+    color: rgb(220, 225, 230);
+    font: 12pt &quot;Roboto&quot;;
+    padding: 8px;
+    min-height: 35px;
+}
+
+QComboBox:hover {
+    border: 2px solid rgb(100, 130, 80);
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 30px;
+}
+
+QComboBox::down-arrow {
+    image: url(down_arrow.png);
+    width: 12px;
+    height: 12px;
+}
+
+QFrame {
+    border-radius: 10px;
+}
+
+QProgressBar {
+    border: 2px solid rgb(50, 68, 85);
+    border-radius: 8px;
+    background: rgb(24, 34, 44);
+    text-align: center;
+    color: rgb(220, 225, 230);
+    font: 11pt &quot;Roboto&quot;;
+}
+
+QProgressBar::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 rgb(75, 100, 70),
+                                stop:1 rgb(100, 130, 80));
+    border-radius: 6px;
+}
+
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+
+QScrollBar:vertical {
+    background: rgb(24, 34, 44);
+    width: 12px;
+    margin: 0px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:vertical {
+    background: rgb(50, 68, 85);
+    border-radius: 6px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: rgb(70, 90, 105);
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QMenuBar {
+    background: rgb(22, 32, 42);
+    color: rgb(220, 225, 230);
+    font: 12pt &quot;Roboto&quot;;
+    padding: 4px;
+    border-bottom: 1px solid rgb(45, 60, 75);
+}
+
+QMenuBar::item {
+    padding: 6px 12px;
+    background: transparent;
+    border-radius: 4px;
+}
+
+QMenuBar::item:selected {
+    background: rgb(85, 105, 75);
+}
+
+QMenu {
+    background: rgb(32, 44, 56);
+    border: 1px solid rgb(45, 60, 75);
+    color: rgb(220, 225, 230);
+    font: 11pt &quot;Roboto&quot;;
+}
+
+QMenu::item {
+    padding: 8px 25px;
+}
+
+QMenu::item:selected {
+    background: rgb(85, 105, 75);
+}
+   </string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="mainVerticalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QSplitter" name="mainSplitter">
+      <property name="styleSheet">
+       <string notr="true">
+QSplitter::handle {
+    background: rgb(40, 55, 68);
+}
+QSplitter::handle:hover {
+    background: rgb(100, 130, 80);
+}
+       </string>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="handleWidth">
+       <number>4</number>
+      </property>
+      <widget class="QWidget" name="leftPanel">
+       <layout class="QVBoxLayout" name="leftPanelLayout">
+        <property name="spacing">
+         <number>15</number>
+        </property>
+        <property name="leftMargin">
+         <number>15</number>
+        </property>
+        <property name="topMargin">
+         <number>15</number>
+        </property>
+        <property name="rightMargin">
+         <number>10</number>
+        </property>
+        <property name="bottomMargin">
+         <number>15</number>
+        </property>
+        <item>
+         <widget class="QFrame" name="statusFrame">
+          <property name="styleSheet">
+           <string notr="true">
+#statusFrame {
+    background: rgb(32, 44, 56);
+    border: 1px solid rgb(45, 60, 75);
+    border-radius: 8px;
+}
+           </string>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QVBoxLayout" name="statusLayout">
+           <property name="leftMargin">
+            <number>15</number>
+           </property>
+           <property name="topMargin">
+            <number>15</number>
+           </property>
+           <property name="rightMargin">
+            <number>15</number>
+           </property>
+           <property name="bottomMargin">
+            <number>15</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="status_inf">
+             <property name="font">
+              <font>
+               <family>Roboto</family>
+               <pointsize>14</pointsize>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>STATUS: Ready to analyze data</string>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="uploadFrame">
+          <property name="styleSheet">
+           <string notr="true">
+#uploadFrame {
+    background: rgb(32, 44, 56);
+    border: 1px solid rgb(45, 60, 75);
+    border-radius: 8px;
+}
+           </string>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QVBoxLayout" name="uploadLayout">
+           <property name="spacing">
+            <number>12</number>
+           </property>
+           <property name="leftMargin">
+            <number>15</number>
+           </property>
+           <property name="topMargin">
+            <number>15</number>
+           </property>
+           <property name="rightMargin">
+            <number>15</number>
+           </property>
+           <property name="bottomMargin">
+            <number>15</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="uploadLabel">
+             <property name="font">
+              <font>
+               <family>Roboto</family>
+               <pointsize>14</pointsize>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>[ Data Upload ]</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btn_save">
+             <property name="text">
+              <string>Upload Baseline Data</string>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>20</width>
+               <height>20</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btn_current_filter">
+             <property name="text">
+              <string>Upload Sample Data</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QProgressBar" name="uploadProgress">
+             <property name="value">
+              <number>0</number>
+             </property>
+             <property name="textVisible">
+              <bool>true</bool>
+             </property>
+             <property name="format">
+              <string>%p% Complete</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="samplesFrame">
+          <property name="styleSheet">
+           <string notr="true">
+#samplesFrame {
+    background: rgb(32, 44, 56);
+    border: 1px solid rgb(45, 60, 75);
+    border-radius: 8px;
+}
+           </string>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QVBoxLayout" name="samplesLayout">
+           <property name="spacing">
+            <number>12</number>
+           </property>
+           <property name="leftMargin">
+            <number>15</number>
+           </property>
+           <property name="topMargin">
+            <number>15</number>
+           </property>
+           <property name="rightMargin">
+            <number>15</number>
+           </property>
+           <property name="bottomMargin">
+            <number>15</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="samplesLabel">
+             <property name="font">
+              <font>
+               <family>Roboto</family>
+               <pointsize>14</pointsize>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>[ Active Sample ]</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="comboBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <item>
+              <property name="text">
+               <string>Sample 1 - Baseline</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Sample 2 - Test A</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Sample 3 - Test B</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="sampleInfo">
+             <property name="font">
+              <font>
+               <family>Roboto</family>
+               <pointsize>14</pointsize>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color: rgb(120, 140, 120);</string>
+             </property>
+             <property name="text">
+              <string>Records: 0 | Size: 0 KB</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="aiFrame">
+          <property name="styleSheet">
+           <string notr="true">
+#aiFrame {
+    background: rgb(32, 44, 56);
+    border: 1px solid rgb(45, 60, 75);
+    border-radius: 8px;
+}
+           </string>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QVBoxLayout" name="aiLayout">
+           <property name="spacing">
+            <number>12</number>
+           </property>
+           <property name="leftMargin">
+            <number>15</number>
+           </property>
+           <property name="topMargin">
+            <number>15</number>
+           </property>
+           <property name="rightMargin">
+            <number>15</number>
+           </property>
+           <property name="bottomMargin">
+            <number>15</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="aiLabel">
+             <property name="font">
+              <font>
+               <family>Roboto</family>
+               <pointsize>14</pointsize>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string> AI Analysis</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="aiModelInfo">
+             <property name="font">
+              <font>
+               <family>Roboto</family>
+               <pointsize>14</pointsize>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color: rgb(130, 160, 150);</string>
+             </property>
+             <property name="text">
+              <string>Model: Ollama (Local LLM)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btn_invert">
+             <property name="text">
+              <string> Generate Summary</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QProgressBar" name="aiProgress">
+             <property name="styleSheet">
+              <string notr="true">
+QProgressBar::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 rgb(50, 85, 100),
+                                stop:1 rgb(75, 115, 130));
+}
+              </string>
+             </property>
+             <property name="value">
+              <number>0</number>
+             </property>
+             <property name="textVisible">
+              <bool>true</bool>
+             </property>
+             <property name="format">
+              <string>Analyzing...</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="verticalSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="rightPanel">
+       <layout class="QVBoxLayout" name="rightPanelLayout">
+        <property name="spacing">
+         <number>10</number>
+        </property>
+        <property name="leftMargin">
+         <number>10</number>
+        </property>
+        <property name="topMargin">
+         <number>15</number>
+        </property>
+        <property name="rightMargin">
+         <number>15</number>
+        </property>
+        <property name="bottomMargin">
+         <number>15</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="displayLabel">
+          <property name="font">
+           <font>
+            <family>Roboto</family>
+            <pointsize>14</pointsize>
+            <italic>false</italic>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string> Data Visualization</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="displayFrame">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">
+#displayFrame {
+    background: rgb(32, 44, 56);
+    border: 2px solid rgb(45, 60, 75);
+    border-radius: 10px;
+}
+           </string>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QVBoxLayout" name="displayFrameLayout">
+           <property name="spacing">
+            <number>0</number>
+           </property>
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="display">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">
+background: transparent;
+border: none;
+              </string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="scaledContents">
+              <bool>false</bool>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="aiSummaryFrame">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>180</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>300</height>
+           </size>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">
+#aiSummaryFrame {
+    background: rgb(32, 44, 56);
+    border: 2px solid rgb(50, 75, 90);
+    border-radius: 10px;
+}
+           </string>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QVBoxLayout" name="aiSummaryLayout">
+           <property name="spacing">
+            <number>10</number>
+           </property>
+           <property name="leftMargin">
+            <number>15</number>
+           </property>
+           <property name="topMargin">
+            <number>15</number>
+           </property>
+           <property name="rightMargin">
+            <number>15</number>
+           </property>
+           <property name="bottomMargin">
+            <number>15</number>
+           </property>
+           <item>
+            <layout class="QHBoxLayout" name="summaryHeaderLayout">
+             <item>
+              <widget class="QLabel" name="aiSummaryTitle">
+               <property name="font">
+                <font>
+                 <family>Roboto</family>
+                 <pointsize>14</pointsize>
+                 <italic>false</italic>
+                 <bold>false</bold>
+                </font>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">color: rgb(100, 140, 130);</string>
+               </property>
+               <property name="text">
+                <string>AI-Generated Summary</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QScrollArea" name="summaryScrollArea">
+             <property name="styleSheet">
+              <string notr="true">
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+              </string>
+             </property>
+             <property name="widgetResizable">
+              <bool>true</bool>
+             </property>
+             <widget class="QWidget" name="scrollAreaWidgetContents">
+              <property name="geometry">
+               <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>635</width>
+                <height>234</height>
+               </rect>
+              </property>
+              <layout class="QVBoxLayout" name="scrollLayout">
+               <property name="leftMargin">
+                <number>5</number>
+               </property>
+               <property name="topMargin">
+                <number>5</number>
+               </property>
+               <property name="rightMargin">
+                <number>5</number>
+               </property>
+               <property name="bottomMargin">
+                <number>5</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="aiSummaryText">
+                 <property name="font">
+                  <font>
+                   <family>Roboto</family>
+                   <pointsize>14</pointsize>
+                   <italic>false</italic>
+                   <bold>false</bold>
+                  </font>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">
+color: rgb(210, 210, 210);
+background: transparent;
+padding: 5px;
+                  
+
+</string>
+                 </property>
+                 <property name="text">
+                  <string>No summary generated yet. Click &quot;Generate Summary&quot; to analyze your data with AI.</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+                 </property>
+                 <property name="wordWrap">
+                  <bool>true</bool>
+                 </property>
+                 <property name="textInteractionFlags">
+                  <set>Qt::TextSelectableByMouse</set>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar">
+   <property name="styleSheet">
+    <string notr="true">
+QStatusBar {
+    background: rgb(22, 32, 42);
+    color: rgb(150, 170, 160);
+    border-top: 1px solid rgb(45, 60, 75);
+}
+    </string>
+   </property>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1148</width>
+     <height>36</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionChangeDirectory"/>
+    <addaction name="separator"/>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuUpload">
+    <property name="title">
+     <string>Upload</string>
+    </property>
+    <addaction name="actionUpload_BaseLine"/>
+    <addaction name="actionUpload_Samples"/>
+   </widget>
+   <widget class="QMenu" name="menuSave">
+    <property name="title">
+     <string>Export</string>
+    </property>
+    <addaction name="actionSave_Current_Graph"/>
+    <addaction name="actionSave_All_Sample_Graph"/>
+    <addaction name="separator"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionDocumentation"/>
+    <addaction name="actionAbout"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuUpload"/>
+   <addaction name="menuSave"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <action name="actionChangeDirectory">
+   <property name="text">
+    <string>Change Directory...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionSave_Current_Graph">
+   <property name="text">
+    <string>Save Current Graph</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionSave_All_Sample_Graph">
+   <property name="text">
+    <string>Save All Graphs</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+S</string>
+   </property>
+  </action>
+  <action name="actionUpload_BaseLine">
+   <property name="text">
+    <string>Upload Baseline...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+B</string>
+   </property>
+  </action>
+  <action name="actionUpload_Samples">
+   <property name="text">
+    <string>Upload Samples...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+U</string>
+   </property>
+  </action>
+  <action name="actionExportCSV">
+   <property name="text">
+    <string>Export as CSV</string>
+   </property>
+  </action>
+  <action name="actionExportJSON">
+   <property name="text">
+    <string>Export as JSON</string>
+   </property>
+  </action>
+  <action name="actionToggleLeftPanel">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Control Panel</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+P</string>
+   </property>
+  </action>
+  <action name="actionZoomIn">
+   <property name="text">
+    <string>Zoom In</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl++</string>
+   </property>
+  </action>
+  <action name="actionZoomOut">
+   <property name="text">
+    <string>Zoom Out</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+-</string>
+   </property>
+  </action>
+  <action name="actionResetZoom">
+   <property name="text">
+    <string>Reset Zoom</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+0</string>
+   </property>
+  </action>
+  <action name="actionDocumentation">
+   <property name="text">
+    <string>Documentation</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
