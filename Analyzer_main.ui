@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1148</width>
-    <height>826</height>
+    <height>1016</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -35,7 +35,7 @@ QPushButton {
     color: rgb(220, 225, 230);
     font: 13pt &quot;Roboto&quot;;
     padding: 8px;
-    min-height: 40px;
+    min-height: 30px;
 }
 
 QPushButton:hover {
@@ -320,6 +320,12 @@ QSplitter::handle:hover {
            </item>
            <item>
             <widget class="QPushButton" name="btn_save">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>30</height>
+              </size>
+             </property>
              <property name="text">
               <string>Upload Baseline Data</string>
              </property>
@@ -333,6 +339,12 @@ QSplitter::handle:hover {
            </item>
            <item>
             <widget class="QPushButton" name="btn_current_filter">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>30</height>
+              </size>
+             </property>
              <property name="text">
               <string>Upload Sample Data</string>
              </property>
@@ -486,7 +498,7 @@ QSplitter::handle:hover {
               </font>
              </property>
              <property name="text">
-              <string> AI Analysis</string>
+              <string>[ AI Analysis ]</string>
              </property>
             </widget>
            </item>
@@ -510,6 +522,12 @@ QSplitter::handle:hover {
            </item>
            <item>
             <widget class="QPushButton" name="btn_invert">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>30</height>
+              </size>
+             </property>
              <property name="text">
               <string> Generate Summary</string>
              </property>
@@ -534,6 +552,98 @@ QProgressBar::chunk {
              </property>
              <property name="format">
               <string>Analyzing...</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="exportFrame">
+          <property name="styleSheet">
+           <string notr="true">
+#exportFrame {
+    background: rgb(32, 44, 56);
+    border: 1px solid rgb(45, 60, 75);
+    border-radius: 8px;
+}
+           </string>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QVBoxLayout" name="exportLayout">
+           <property name="spacing">
+            <number>12</number>
+           </property>
+           <property name="leftMargin">
+            <number>15</number>
+           </property>
+           <property name="topMargin">
+            <number>15</number>
+           </property>
+           <property name="rightMargin">
+            <number>15</number>
+           </property>
+           <property name="bottomMargin">
+            <number>15</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="exportLabel">
+             <property name="font">
+              <font>
+               <family>Roboto</family>
+               <pointsize>14</pointsize>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>[ Export Graphs ]</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btn_export_current">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>30</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Export Current Graph</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btn_export_all">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>30</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Export All Graphs</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="exportInfo">
+             <property name="font">
+              <font>
+               <family>Roboto</family>
+               <pointsize>14</pointsize>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color: rgb(120, 140, 120);</string>
+             </property>
+             <property name="text">
+              <string>Format: PNG</string>
              </property>
             </widget>
            </item>
@@ -694,161 +804,161 @@ border: none;
            </layout>
           </widget>
           <widget class="QFrame" name="aiSummaryFrame">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>180</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>16777215</width>
-            <height>300</height>
-           </size>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>180</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>300</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
 #aiSummaryFrame {
     background: rgb(32, 44, 56);
     border: 2px solid rgb(50, 75, 90);
     border-radius: 10px;
 }
            </string>
-          </property>
-          <property name="frameShape">
-           <enum>QFrame::StyledPanel</enum>
-          </property>
-          <layout class="QVBoxLayout" name="aiSummaryLayout">
-           <property name="spacing">
-            <number>10</number>
            </property>
-           <property name="leftMargin">
-            <number>15</number>
+           <property name="frameShape">
+            <enum>QFrame::StyledPanel</enum>
            </property>
-           <property name="topMargin">
-            <number>15</number>
-           </property>
-           <property name="rightMargin">
-            <number>15</number>
-           </property>
-           <property name="bottomMargin">
-            <number>15</number>
-           </property>
-           <item>
-            <layout class="QHBoxLayout" name="summaryHeaderLayout">
-             <item>
-              <widget class="QLabel" name="aiSummaryTitle">
-               <property name="font">
-                <font>
-                 <family>Roboto</family>
-                 <pointsize>14</pointsize>
-                 <italic>false</italic>
-                 <bold>false</bold>
-                </font>
-               </property>
-               <property name="styleSheet">
-                <string notr="true">color: rgb(100, 140, 130);</string>
-               </property>
-               <property name="text">
-                <string>AI-Generated Summary</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="horizontalSpacer">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <widget class="QScrollArea" name="summaryScrollArea">
-             <property name="styleSheet">
-              <string notr="true">
+           <layout class="QVBoxLayout" name="aiSummaryLayout">
+            <property name="spacing">
+             <number>10</number>
+            </property>
+            <property name="leftMargin">
+             <number>15</number>
+            </property>
+            <property name="topMargin">
+             <number>15</number>
+            </property>
+            <property name="rightMargin">
+             <number>15</number>
+            </property>
+            <property name="bottomMargin">
+             <number>15</number>
+            </property>
+            <item>
+             <layout class="QHBoxLayout" name="summaryHeaderLayout">
+              <item>
+               <widget class="QLabel" name="aiSummaryTitle">
+                <property name="font">
+                 <font>
+                  <family>Roboto</family>
+                  <pointsize>14</pointsize>
+                  <italic>false</italic>
+                  <bold>false</bold>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color: rgb(100, 140, 130);</string>
+                </property>
+                <property name="text">
+                 <string>AI-Generated Summary</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QScrollArea" name="summaryScrollArea">
+              <property name="styleSheet">
+               <string notr="true">
 QScrollArea {
     background: transparent;
     border: none;
 }
               </string>
-             </property>
-             <property name="widgetResizable">
-              <bool>true</bool>
-             </property>
-             <widget class="QWidget" name="scrollAreaWidgetContents">
-              <property name="geometry">
-               <rect>
-                <x>0</x>
-                <y>0</y>
-                <width>635</width>
-                <height>234</height>
-               </rect>
               </property>
-              <layout class="QVBoxLayout" name="scrollLayout">
-               <property name="leftMargin">
-                <number>5</number>
+              <property name="widgetResizable">
+               <bool>true</bool>
+              </property>
+              <widget class="QWidget" name="scrollAreaWidgetContents">
+               <property name="geometry">
+                <rect>
+                 <x>0</x>
+                 <y>0</y>
+                 <width>685</width>
+                 <height>234</height>
+                </rect>
                </property>
-               <property name="topMargin">
-                <number>5</number>
-               </property>
-               <property name="rightMargin">
-                <number>5</number>
-               </property>
-               <property name="bottomMargin">
-                <number>5</number>
-               </property>
-               <item>
-                <widget class="QLabel" name="aiSummaryText">
-                 <property name="font">
-                  <font>
-                   <family>Roboto</family>
-                   <pointsize>14</pointsize>
-                   <italic>false</italic>
-                   <bold>false</bold>
-                  </font>
-                 </property>
-                 <property name="styleSheet">
-                  <string notr="true">
+               <layout class="QVBoxLayout" name="scrollLayout">
+                <property name="leftMargin">
+                 <number>5</number>
+                </property>
+                <property name="topMargin">
+                 <number>5</number>
+                </property>
+                <property name="rightMargin">
+                 <number>5</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>5</number>
+                </property>
+                <item>
+                 <widget class="QLabel" name="aiSummaryText">
+                  <property name="font">
+                   <font>
+                    <family>Roboto</family>
+                    <pointsize>14</pointsize>
+                    <italic>false</italic>
+                    <bold>false</bold>
+                   </font>
+                  </property>
+                  <property name="styleSheet">
+                   <string notr="true">
 color: rgb(210, 210, 210);
 background: transparent;
 padding: 5px;
                   
 
 </string>
-                 </property>
-                 <property name="text">
-                  <string>No summary generated yet. Click &quot;Generate Summary&quot; to analyze your data with AI.</string>
-                 </property>
-                 <property name="alignment">
-                  <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-                 </property>
-                 <property name="wordWrap">
-                  <bool>true</bool>
-                 </property>
-                 <property name="textInteractionFlags">
-                  <set>Qt::TextSelectableByMouse</set>
-                 </property>
-                </widget>
-               </item>
-              </layout>
+                  </property>
+                  <property name="text">
+                   <string>No summary generated yet. Click &quot;Generate Summary&quot; to analyze your data with AI.</string>
+                  </property>
+                  <property name="alignment">
+                   <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+                  </property>
+                  <property name="wordWrap">
+                   <bool>true</bool>
+                  </property>
+                  <property name="textInteractionFlags">
+                   <set>Qt::TextSelectableByMouse</set>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
              </widget>
-            </widget>
-           </item>
-          </layout>
-         </widget>
+            </item>
+           </layout>
+          </widget>
          </widget>
         </item>
        </layout>
