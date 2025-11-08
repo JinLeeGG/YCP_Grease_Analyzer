@@ -888,6 +888,15 @@ QSplitter::handle:hover {
     border: 2px solid rgb(50, 75, 90);
     border-radius: 10px;
 }
+
+QTextEdit {
+    background: rgb(24, 34, 44);
+    border: 1px solid rgb(45, 60, 75);
+    border-radius: 6px;
+    color: rgb(220, 225, 230);
+    font: 11pt &quot;Roboto&quot;;
+    padding: 8px;
+}
             </string>
             </property>
             <property name="frameShape">
@@ -945,75 +954,13 @@ QSplitter::handle:hover {
               </layout>
              </item>
              <item>
-              <widget class="QScrollArea" name="summaryScrollArea">
-               <property name="styleSheet">
-                <string notr="true">
-QScrollArea {
-    background: transparent;
-    border: none;
-}
-               </string>
-               </property>
-               <property name="widgetResizable">
+              <widget class="QTextEdit" name="aiSummaryText">
+               <property name="readOnly">
                 <bool>true</bool>
                </property>
-               <widget class="QWidget" name="scrollAreaWidgetContents">
-                <property name="geometry">
-                 <rect>
-                  <x>0</x>
-                  <y>0</y>
-                  <width>313</width>
-                  <height>234</height>
-                 </rect>
-                </property>
-                <layout class="QVBoxLayout" name="scrollLayout">
-                 <property name="leftMargin">
-                  <number>5</number>
-                 </property>
-                 <property name="topMargin">
-                  <number>5</number>
-                 </property>
-                 <property name="rightMargin">
-                  <number>5</number>
-                 </property>
-                 <property name="bottomMargin">
-                  <number>5</number>
-                 </property>
-                 <item>
-                  <widget class="QLabel" name="aiSummaryText">
-                   <property name="font">
-                    <font>
-                     <family>Roboto</family>
-                     <pointsize>14</pointsize>
-                     <italic>false</italic>
-                     <bold>false</bold>
-                    </font>
-                   </property>
-                   <property name="styleSheet">
-                    <string notr="true">
-color: rgb(210, 210, 210);
-background: transparent;
-padding: 5px;
-                   
-
-</string>
-                   </property>
-                   <property name="text">
-                    <string>No summary generated yet. Click &quot;Generate Summary&quot; to analyze your data with AI.</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-                   </property>
-                   <property name="wordWrap">
-                    <bool>true</bool>
-                   </property>
-                   <property name="textInteractionFlags">
-                    <set>Qt::TextSelectableByMouse</set>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
+               <property name="placeholderText">
+                <string>No summary generated yet. Click "Generate Summary" to analyze your data with AI.</string>
+               </property>
               </widget>
              </item>
             </layout>
