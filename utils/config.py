@@ -83,6 +83,15 @@ PDF_CONFIG = {
 SUPPORTED_FORMATS = ['png', 'jpg', 'jpeg']
 
 # ============================================================================
+# EXPORT SETTINGS
+# ============================================================================
+# User-configurable export settings (can be changed at runtime)
+EXPORT_SETTINGS = {
+    'save_directory': os.path.expanduser("~/Desktop/grease_analysis_output"),  # Default save location
+    'image_format': 'png',            # Default image format: 'png' or 'jpg'
+}
+
+# ============================================================================
 # DEFAULT PATHS
 # ============================================================================
 # Default directory for saving analysis outputs (graphs, reports)
