@@ -209,6 +209,8 @@ class GreaseAnalyzerApp(QMainWindow):
         # Disable buttons until baseline is loaded
         self.btn_current_filter.setEnabled(False)  # Upload samples button
         self.btn_invert.setEnabled(False)          # Generate analysis button
+        self.btn_export_current.setEnabled(False)  # Export current graph button
+        self.btn_export_all.setEnabled(False)      # Export all graphs button
         
         # Initialize sample dropdown menu
         self.comboBox.clear()
@@ -217,6 +219,13 @@ class GreaseAnalyzerApp(QMainWindow):
         # Display AI model configuration information
         model_name = LLM_CONFIG['model'].replace('llava:', 'LLaVA ').replace('-q4_K_M', ' Q4')
         self.aiModelInfo.setText(f"Model: {model_name} (Parallel: {LLM_CONFIG['max_workers']} workers)")
+        
+        # Update export info label
+        self.update_export_info()
+        
+        # Make export info label clickable (opens directory settings)
+        self.exportInfo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.exportInfo.mousePressEvent = lambda event: self.change_save_directory()
         
         # Set default splitter sizes
         self.set_default_splitter_sizes()
@@ -256,6 +265,10 @@ class GreaseAnalyzerApp(QMainWindow):
         self.btn_save.clicked.connect(self.upload_baseline)
         self.btn_current_filter.clicked.connect(self.upload_samples)
         self.btn_invert.clicked.connect(self.generate_analysis)
+        
+        # Export button handlers
+        self.btn_export_current.clicked.connect(self.save_current_graph)
+        self.btn_export_all.clicked.connect(self.save_all_graphs)
         
         # Dropdown selection handler
         self.comboBox.currentIndexChanged.connect(self.on_sample_changed)
@@ -415,6 +428,8 @@ class GreaseAnalyzerApp(QMainWindow):
                 self.current_sample_index = 0
                 self.display_current_sample()
                 self.btn_invert.setEnabled(True)
+                self.btn_export_current.setEnabled(True)  # Enable export buttons
+                self.btn_export_all.setEnabled(True)
             
             QMessageBox.information(
                 self,
@@ -844,12 +859,29 @@ class GreaseAnalyzerApp(QMainWindow):
                 f"Directory: {self.save_directory}\n"
                 f"Format: {self.image_format.upper()}"
             )
+            
+            # Update export info label
+            self.update_export_info()
         
         dialog.okButton.clicked.connect(apply_settings)
         dialog.cancelButton.clicked.connect(dialog.reject)
         
         # Show dialog
         dialog.exec()
+    
+    def update_export_info(self):
+        """
+        Update Export Info Label
+        
+        Updates the export info label in the sidebar to show current
+        export format and whether a save directory has been configured.
+        """
+        if self.save_directory and self.save_directory != '':
+            # Show format and that directory is configured
+            self.exportInfo.setText(f"Format: {self.image_format.upper()} | Directory: Set ✓")
+        else:
+            # Prompt user to configure directory
+            self.exportInfo.setText(f"Format: {self.image_format.upper()} | Set directory...")
     
     def show_documentation(self):
         """
