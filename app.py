@@ -236,7 +236,8 @@ class GreaseAnalyzerApp(QMainWindow):
             "No analysis yet.\n"
             "1. Upload baseline data\n"
             "2. Upload sample data\n"
-            "3. Click 'Generate Analysis' for hybrid AI analysis"
+            "3. Select a sample from dropdown\n"
+            "4. Click 'Generate Analysis' to analyze the current sample"
         )
         
         # Initialize chat interface
@@ -431,27 +432,37 @@ class GreaseAnalyzerApp(QMainWindow):
     
     def build_chat_context(self) -> Dict:
         """
-        Build Context for AI Chat
+        Build Context for AI Chat (Current Sample Only)
         
-        Creates a dictionary containing all relevant analysis data
-        that the AI can reference when answering questions.
+        Creates a dictionary containing relevant analysis data for the
+        currently selected sample that the AI can reference when answering questions.
         
         Returns:
-            Dictionary with baseline, samples, and analysis results
+            Dictionary with baseline and current sample analysis results
         """
+        current_sample = self.sample_data_list[self.current_sample_index] if self.sample_data_list else None
+        current_sample_name = current_sample['name'] if current_sample else None
+        
         context = {
             'baseline_name': self.baseline_name,
             'sample_count': len(self.sample_data_list),
             'sample_names': [s['name'] for s in self.sample_data_list],
-            'analysis_summary': self.analysis_results.get('summary', ''),
-            'individual_analyses': self.analysis_results.get('individual_results', {}),
-            'current_sample': self.sample_data_list[self.current_sample_index]['name'] if self.sample_data_list else None,
+            'current_sample': current_sample_name,
             'chat_history': self.chat_history[-5:]  # Last 5 exchanges for context
         }
         
+        # Add analysis results for current sample only
+        individual_results = self.analysis_results.get('individual_results', {})
+        if current_sample_name and current_sample_name in individual_results:
+            # Only include current sample's analysis
+            context['individual_analyses'] = {current_sample_name: individual_results[current_sample_name]}
+            context['analysis_summary'] = f"Analysis for {current_sample_name}"
+        else:
+            context['individual_analyses'] = {}
+            context['analysis_summary'] = 'No analysis available for current sample'
+        
         # Add sample statistics for current sample
-        if self.sample_data_list:
-            current_sample = self.sample_data_list[self.current_sample_index]
+        if current_sample:
             context['current_sample_stats'] = {
                 'quality_score': current_sample['comparison']['quality_score'],
                 'mean_deviation': current_sample['comparison']['mean_deviation_percent'],
@@ -662,6 +673,8 @@ class GreaseAnalyzerApp(QMainWindow):
             # Display first sample automatically
             if self.sample_data_list:
                 self.current_sample_index = 0
+                # Reset analysis and chat for fresh start
+                self.reset_analysis_and_chat()
                 # Force immediate graph display
                 QApplication.processEvents()  # Process any pending events first
                 self.display_current_sample()
@@ -692,6 +705,46 @@ class GreaseAnalyzerApp(QMainWindow):
         if 0 <= index < len(self.sample_data_list):
             self.current_sample_index = index
             self.display_current_sample()
+            # Reset AI analysis and chat when changing samples
+            self.reset_analysis_and_chat()
+
+    def reset_analysis_and_chat(self):
+        """
+        Reset AI Analysis and Chat when Sample Changes
+        
+        Clears the analysis results and chat history for the new sample,
+        allowing users to start fresh with each sample.
+        """
+        # Clear analysis results
+        self.analysis_results = {}
+        
+        # Clear chat history
+        self.chat_history = []
+        
+        # Reset AI summary text
+        self.aiSummaryText.setText(
+            "No analysis for this sample yet.\n\n"
+            "Click 'Generate Analysis' to analyze the current sample."
+        )
+        
+        # Reset chat display
+        welcome_msg = (
+            "<div style='color: #b0b0b0; margin-top: 10px;'>"
+            "I can help you understand your FTIR analysis results. "
+            "Run analysis first, then ask me about oxidation levels, contamination or peak changes."
+            "</div>"
+        )
+        self.chatDisplay.setHtml(welcome_msg)
+        
+        # Disable chat until new analysis is run
+        self.chatInput.setEnabled(False)
+        self.btn_send_message.setEnabled(False)
+        self.chatInput.setPlaceholderText("Run analysis first to enable chat...")
+        
+        # Reset AI progress bar
+        self.aiProgress.setValue(0)
+        
+        print(f"🔄 Analysis and chat reset for new sample")
 
     def display_current_sample(self):
         """Display graph for currently selected sample"""
@@ -804,7 +857,7 @@ class GreaseAnalyzerApp(QMainWindow):
     
     def generate_analysis(self):
         """
-        Generate AI Hybrid Analysis (Numerical + Visual)
+        Generate AI Hybrid Analysis (Numerical + Visual) for Current Sample Only
         """
         if not self.sample_data_list:
             QMessageBox.warning(self, "Warning", "No samples to analyze!")
@@ -814,45 +867,43 @@ class GreaseAnalyzerApp(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please upload baseline data first!")
             return
         
-        # Save graphs first for analysis
-        self.saved_graph_paths.clear()
+        # Get current sample only
+        current_sample = self.sample_data_list[self.current_sample_index]
+        
+        # Save graph for current sample only
         temp_dir = Path(self.save_directory) / "temp_analysis"
         temp_dir.mkdir(parents=True, exist_ok=True)
         
         try:
-            self.status_inf.setText("STATUS: Preparing graphs for analysis...")
-            for i, sample in enumerate(self.sample_data_list):
-                # Generate graph
-                fig = self.graph_generator.create_overlay_graph(
-                    self.baseline_data,
-                    sample['data'],
-                    self.baseline_name,
-                    sample['name']
-                )
-                
-                # Save to temp file
-                graph_filename = f"analysis_{i}_{sample['name'].replace('.csv', '')}.png"
-                graph_path = temp_dir / graph_filename
-                fig.savefig(graph_path, dpi=300, bbox_inches='tight', facecolor='white')
-                self.saved_graph_paths.append(str(graph_path))
-                plt.close(fig)
+            self.status_inf.setText("STATUS: Preparing graph for analysis...")
             
-            # Extract sample names for worker
-            sample_names = [sample['name'] for sample in self.sample_data_list]
+            # Generate graph for current sample
+            fig = self.graph_generator.create_overlay_graph(
+                self.baseline_data,
+                current_sample['data'],
+                self.baseline_name,
+                current_sample['name']
+            )
             
-            # Start worker thread for background analysis
+            # Save to temp file
+            graph_filename = f"analysis_{current_sample['name'].replace('.csv', '')}.png"
+            graph_path = temp_dir / graph_filename
+            fig.savefig(graph_path, dpi=300, bbox_inches='tight', facecolor='white')
+            plt.close(fig)
+            
+            # Start worker thread for background analysis (single sample)
             self.aiProgress.setValue(0)
-            self.aiSummaryText.setText("🔄 Analyzing... Please wait.")
+            self.aiSummaryText.setText("🔄 Analyzing current sample... Please wait.")
             self.btn_invert.setEnabled(False)  # Disable button during analysis
             
-            # Create and configure worker thread with correct arguments
+            # Create and configure worker thread for single sample
             self.analysis_worker = AnalysisWorker(
                 self.llm_analyzer,
-                self.saved_graph_paths,
+                [str(graph_path)],  # Single graph path
                 self.baseline_data,
                 self.baseline_name,
-                self.sample_data_list,
-                sample_names
+                [current_sample],  # Single sample data
+                [current_sample['name']]  # Single sample name
             )
             self.analysis_worker.progress.connect(self.on_analysis_progress)
             self.analysis_worker.status.connect(self.on_analysis_status)
@@ -875,24 +926,30 @@ class GreaseAnalyzerApp(QMainWindow):
         self.status_inf.setText(f"STATUS: {message}")
 
     def on_analysis_finished(self, results: Dict):
-        """Handle completed visual analysis results"""
+        """Handle completed visual analysis results for current sample"""
         self.analysis_results = results
 
+        # Get current sample info
+        current_sample = self.sample_data_list[self.current_sample_index]
+        sample_name = current_sample['name']
+        
+        # Build analysis display text for single sample
         summary_text = "🤖 Hybrid AI Analysis Results\n"
         summary_text += "=" * 70 + "\n\n"
-        summary_text += "📋 Executive Summary\n\n"
-        summary_text += results['summary'] + "\n\n"
+        summary_text += f"� Sample: {sample_name}\n\n"
         summary_text += "=" * 70 + "\n\n"
-
-        for sample_name, analysis in results['individual_results'].items():
-            sample_info = next((s for s in self.sample_data_list if s['name'] == sample_name), None)
-            if sample_info:
-                summary_text += f"📊 {sample_name}\n\n"
-                summary_text += analysis + "\n\n"
-                summary_text += f"Quality Score: {sample_info['comparison']['quality_score']:.1f}/100\n"
-                summary_text += f"Mean Deviation: {sample_info['comparison']['mean_deviation_percent']:+.1f}%\n"
-                summary_text += f"Correlation: {sample_info['comparison']['correlation']:.3f}\n"
-                summary_text += "\n" + "-" * 70 + "\n\n"
+        
+        # Display analysis for the sample
+        if sample_name in results['individual_results']:
+            analysis = results['individual_results'][sample_name]
+            summary_text += analysis + "\n\n"
+            summary_text += "=" * 70 + "\n\n"
+            summary_text += "📈 Sample Statistics:\n\n"
+            summary_text += f"Quality Score: {current_sample['comparison']['quality_score']:.1f}/100\n"
+            summary_text += f"Mean Deviation: {current_sample['comparison']['mean_deviation_percent']:+.1f}%\n"
+            summary_text += f"Correlation: {current_sample['comparison']['correlation']:.3f}\n"
+        else:
+            summary_text += "⚠️ No analysis results found for this sample.\n"
 
         self.aiSummaryText.setText(summary_text)
         self.aiProgress.setValue(100)
@@ -903,13 +960,14 @@ class GreaseAnalyzerApp(QMainWindow):
         
         # Add welcome message to chat
         welcome_chat_msg = (
-            "Analysis complete! I now have full context about your sample. "
+            f"Analysis complete for {sample_name}! "
+            "I now have full context about this sample. "
             "Feel free to ask me questions about the results, specific peaks, "
             "oxidation levels, or recommendations."
         )
         self.append_chat_message("assistant", welcome_chat_msg)
 
-        QMessageBox.information(self, "Success", "Hybrid AI analysis completed!")
+        QMessageBox.information(self, "Success", f"Analysis completed for {sample_name}!")
 
     def on_analysis_error(self, error_msg: str):
         """Handle analysis error"""
@@ -1138,16 +1196,12 @@ class GreaseAnalyzerApp(QMainWindow):
     def show_documentation(self):
         """
         Save All Graphs and Reports Together
+        
+        Note: Only the currently analyzed sample will have AI analysis.
+        Other samples will export graphs only.
         """
         if not self.sample_data_list:
             QMessageBox.warning(self, "Warning", "No data to export!")
-            return
-        
-        if not self.analysis_results:
-            QMessageBox.warning(
-                self, "Warning",
-                "No AI analysis available!\n\nPlease run 'Generate Analysis' first."
-            )
             return
         
         # Select directory
@@ -1162,6 +1216,13 @@ class GreaseAnalyzerApp(QMainWindow):
         
         try:
             exported_count = 0
+            analyzed_sample = None
+            
+            # Check which sample has analysis
+            if self.analysis_results and 'individual_results' in self.analysis_results:
+                individual_results = self.analysis_results['individual_results']
+                if individual_results:
+                    analyzed_sample = list(individual_results.keys())[0]
             
             for sample in self.sample_data_list:
                 sample_name = sample['name'].replace('.csv', '')
@@ -1179,14 +1240,19 @@ class GreaseAnalyzerApp(QMainWindow):
                 fig.savefig(graph_path, dpi=300, bbox_inches='tight')
                 plt.close(fig)
                 
-                # Save analysis report
+                # Save analysis report if available for this sample
                 report_filename = f"{sample_name}_analysis.txt"
                 report_path = os.path.join(directory, report_filename)
                 
-                analysis_text = self.analysis_results['individual_results'].get(
-                    sample['name'],
-                    "No analysis available."
-                )
+                if sample['name'] == analyzed_sample:
+                    # This sample has AI analysis
+                    analysis_text = self.analysis_results['individual_results'].get(
+                        sample['name'],
+                        "No analysis available."
+                    )
+                else:
+                    # This sample doesn't have AI analysis yet
+                    analysis_text = "⚠️ AI analysis not performed for this sample yet.\n\nTo analyze this sample:\n1. Select it from the dropdown\n2. Click 'Generate Analysis'"
                 
                 report_content = f"""
 ═══════════════════════════════════════════════════════════════════
@@ -1221,23 +1287,31 @@ AI VISUAL ANALYSIS (LLaVA Hybrid)
                 exported_count += 1
             
             # Save executive summary
-            summary_path = os.path.join(directory, "00_EXECUTIVE_SUMMARY.txt")
+            summary_path = os.path.join(directory, "00_EXPORT_SUMMARY.txt")
             summary_content = f"""
 ═══════════════════════════════════════════════════════════════════
-EXECUTIVE SUMMARY - ALL SAMPLES
+EXPORT SUMMARY
 ═══════════════════════════════════════════════════════════════════
 
-Analysis Date: {time.strftime('%Y-%m-%d %H:%M:%S')}
+Export Date: {time.strftime('%Y-%m-%d %H:%M:%S')}
 Baseline: {self.baseline_name}
-Total Samples: {len(self.sample_data_list)}
+Total Samples Exported: {len(self.sample_data_list)}
 
-{self.analysis_results.get('summary', 'No summary available.')}
+NOTE: AI analysis is performed per sample. Only the sample that was
+analyzed will have detailed AI analysis in its report.
+
+Analyzed Sample: {analyzed_sample if analyzed_sample else 'None'}
+
+To analyze other samples:
+1. Select the sample from the dropdown menu
+2. Click 'Generate Analysis'
+3. Export again to include the new analysis
 
 ═══════════════════════════════════════════════════════════════════
-INDIVIDUAL REPORTS
+EXPORTED FILES
 ═══════════════════════════════════════════════════════════════════
 
-See individual *_analysis.txt files for detailed assessments.
+See individual *_analysis.txt files for reports (with AI analysis if available).
 See individual *_graph.png files for visual spectroscopy data.
 
 ═══════════════════════════════════════════════════════════════════
@@ -1269,10 +1343,11 @@ See individual *_graph.png files for visual spectroscopy data.
             "Grease Analyzer with Hybrid AI\n\n"
             "1. Upload baseline data (reference)\n"
             "2. Upload sample files\n"
-            "3. View graphs\n"
-            "4. Generate hybrid AI analysis (Numerical Data + LLaVA Vision)\n"
-            "5. Export results\n\n"
-            "The hybrid mode provides faster, more accurate results!"
+            "3. Select a sample from dropdown\n"
+            "4. Generate AI analysis for current sample\n"
+            "5. Change samples to analyze each one\n"
+            "6. Export results\n\n"
+            "Analysis is per sample - chat resets when you change samples!"
         )
 
     def show_about(self):
