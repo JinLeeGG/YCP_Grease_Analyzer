@@ -154,7 +154,7 @@ class GreaseAnalyzerApp(QMainWindow):
         super().__init__()
         
         # Load UI layout from Qt Designer file
-        ui_path = Path(__file__).parent / "Analyzer_main.ui"
+        ui_path = Path(__file__).parent / "GUI" / "Analyzer_main.ui"
         uic.loadUi(ui_path, self)
         
         # Initialize data storage structures
@@ -912,7 +912,7 @@ class GreaseAnalyzerApp(QMainWindow):
         The settings persist for the current session.
         """
         # Load the custom UI dialog
-        dialog_path = Path(__file__).parent / "path.ui"
+        dialog_path = Path(__file__).parent / "GUI" / "path.ui"
         dialog = uic.loadUi(dialog_path)
         
         # Set current values in the dialog - show "..." if not set
