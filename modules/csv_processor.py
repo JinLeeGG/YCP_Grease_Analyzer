@@ -15,7 +15,7 @@ like "Created as New Dataset" that some instruments produce.
 
 import pandas as pd
 import numpy as np
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List, Dict
 import sys
 import os
 
@@ -393,6 +393,201 @@ class CSVProcessor:
         
         # Clamp to 0-100 range
         return max(0, min(100, score))
+    
+    @staticmethod
+    def detect_peaks(df: pd.DataFrame, min_height: float = None, 
+                    min_distance: int = 10, prominence: float = None) -> List[Dict]:
+        """
+        Detect Peaks in Spectroscopy Data
+        
+        Identifies local maxima (peaks) in the Y values of the dataset.
+        Useful for FTIR analysis to identify characteristic absorption bands.
+        
+        Args:
+            df: DataFrame with 'X' (wavenumber) and 'Y' (absorbance) columns
+            min_height: Minimum peak height (if None, uses 10% of max value)
+            min_distance: Minimum distance between peaks (in data points)
+            prominence: Minimum prominence of peaks (if None, uses 5% of range)
+            
+        Returns:
+            List of dictionaries, each containing:
+            - 'wavenumber': X value (wavenumber in cm⁻¹)
+            - 'absorbance': Y value (absorbance)
+            - 'index': Index in DataFrame
+        """
+        try:
+            from scipy.signal import find_peaks
+        except ImportError:
+            raise ImportError(
+                "scipy is required for peak detection. "
+                "Please install it with: pip install scipy==1.11.4"
+            )
+        
+        y_values = df['Y'].values
+        x_values = df['X'].values
+        
+        # Set default parameters if not provided
+        if min_height is None:
+            min_height = np.max(y_values) * 0.1  # 10% of max
+        
+        if prominence is None:
+            data_range = np.max(y_values) - np.min(y_values)
+            prominence = data_range * 0.05  # 5% of range
+        
+        # Find peaks
+        peaks, properties = find_peaks(
+            y_values,
+            height=min_height,
+            distance=min_distance,
+            prominence=prominence
+        )
+        
+        # Format results
+        peak_list = []
+        for i, peak_idx in enumerate(peaks):
+            peak_list.append({
+                'wavenumber': float(x_values[peak_idx]),
+                'absorbance': float(y_values[peak_idx]),
+                'index': int(peak_idx)
+            })
+        
+        # Sort by wavenumber (ascending) - important for FTIR analysis
+        peak_list.sort(key=lambda x: x['wavenumber'])
+        
+        return peak_list
+    
+    @staticmethod
+    def get_significant_peaks_by_region(peaks: List[Dict], df: pd.DataFrame) -> List[Dict]:
+        """
+        Identify Significant Peaks in Key FTIR Regions
+        
+        Selects the most important peaks from different spectral regions:
+        - Fingerprint region (1400-1600 cm⁻¹): Important for molecular identification
+        - Carbonyl region (1650-1800 cm⁻¹): Critical for oxidation
+        - C-H stretch (2800-3000 cm⁻¹): Highest intensity, aliphatic chains
+        - O-H region (3200-3600 cm⁻¹): Water/oxidation
+        
+        This ensures we capture peaks from all important regions, not just
+        the highest absorbance peaks.
+        
+        Args:
+            peaks: List of all detected peaks (sorted by wavenumber)
+            df: DataFrame for calculating region statistics
+            
+        Returns:
+            List of significant peaks from key regions (sorted by wavenumber)
+        """
+        if not peaks:
+            return []
+        
+        significant = []
+        
+        # Define key regions for FTIR analysis
+        regions = [
+            (1400, 1600, "fingerprint"),  # Fingerprint region
+            (1650, 1800, "carbonyl"),      # Carbonyl/oxidation
+            (2800, 3000, "ch_stretch"),   # C-H stretch (usually highest)
+            (3200, 3600, "oh_region"),    # O-H region
+        ]
+        
+        # Get max absorbance for normalization
+        max_abs = max(p['absorbance'] for p in peaks) if peaks else 1.0
+        
+        # For each region, find the highest peak
+        for wavenumber_min, wavenumber_max, region_name in regions:
+            region_peaks = [p for p in peaks 
+                          if wavenumber_min <= p['wavenumber'] <= wavenumber_max]
+            
+            if region_peaks:
+                # Get the highest peak in this region
+                highest = max(region_peaks, key=lambda x: x['absorbance'])
+                # Only include if it's significant (>15% of max absorbance)
+                if highest['absorbance'] > max_abs * 0.15:
+                    significant.append(highest)
+        
+        # Also include top 3 overall peaks (by absorbance) if not already included
+        top_by_abs = sorted(peaks, key=lambda x: x['absorbance'], reverse=True)[:3]
+        for peak in top_by_abs:
+            # Check if already in significant list (within 10 cm⁻¹)
+            if not any(abs(p['wavenumber'] - peak['wavenumber']) < 10 for p in significant):
+                significant.append(peak)
+        
+        # Sort by wavenumber for consistent reporting
+        significant.sort(key=lambda x: x['wavenumber'])
+        
+        return significant
+    
+    @staticmethod
+    def get_value_at_wavenumber(df: pd.DataFrame, target_wavenumber: float, 
+                               tolerance: float = 5.0) -> Optional[float]:
+        """
+        Get Absorbance Value at Specific Wavenumber
+        
+        Finds the Y value (absorbance) closest to the target wavenumber.
+        Useful for analyzing specific regions like oxidation zones (1650-1800 cm⁻¹).
+        
+        Args:
+            df: DataFrame with 'X' (wavenumber) and 'Y' (absorbance) columns
+            target_wavenumber: Target wavenumber to find (e.g., 1725 for carbonyl)
+            tolerance: Maximum distance from target to consider (default: 5 cm⁻¹)
+            
+        Returns:
+            Absorbance value at target wavenumber, or None if not found
+        """
+        # Find closest X value to target
+        distances = np.abs(df['X'].values - target_wavenumber)
+        min_idx = np.argmin(distances)
+        min_distance = distances[min_idx]
+        
+        if min_distance <= tolerance:
+            return float(df.iloc[min_idx]['Y'])
+        return None
+    
+    @staticmethod
+    def get_region_statistics(df: pd.DataFrame, wavenumber_min: float, 
+                             wavenumber_max: float) -> Dict:
+        """
+        Get Statistics for Specific Wavenumber Region
+        
+        Analyzes a specific region of the spectrum (e.g., oxidation zone 1650-1800 cm⁻¹).
+        
+        Args:
+            df: DataFrame with 'X' (wavenumber) and 'Y' (absorbance) columns
+            wavenumber_min: Minimum wavenumber of region
+            wavenumber_max: Maximum wavenumber of region
+            
+        Returns:
+            Dictionary with:
+            - 'mean': Mean absorbance in region
+            - 'max': Maximum absorbance in region
+            - 'max_wavenumber': Wavenumber at maximum
+            - 'min': Minimum absorbance in region
+            - 'count': Number of data points in region
+        """
+        # Filter data in region
+        region_df = df[(df['X'] >= wavenumber_min) & (df['X'] <= wavenumber_max)]
+        
+        if region_df.empty:
+            return {
+                'mean': 0.0,
+                'max': 0.0,
+                'max_wavenumber': 0.0,
+                'min': 0.0,
+                'count': 0
+            }
+        
+        y_values = region_df['Y'].values
+        x_values = region_df['X'].values
+        
+        max_idx = np.argmax(y_values)
+        
+        return {
+            'mean': float(np.mean(y_values)),
+            'max': float(np.max(y_values)),
+            'max_wavenumber': float(x_values[max_idx]),
+            'min': float(np.min(y_values)),
+            'count': len(region_df)
+        }
 
 
 # ============================================================================
