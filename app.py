@@ -213,6 +213,33 @@ class GreaseAnalyzerApp(QMainWindow):
         # Display AI model configuration information
         self.aiModelInfo.setText(f"Model: {LLM_CONFIG['model']} (Parallel: {LLM_CONFIG['max_workers']} workers)")
         
+        # Set default splitter sizes
+        self.set_default_splitter_sizes()
+        
+    def set_default_splitter_sizes(self):
+        """
+        Set Default Splitter Sizes for Initial Layout
+        
+        Configures the splitters to show:
+        - Left panel (control panel): Minimized to ~320px
+        - Right panel (visualization + AI): Maximized
+        - Data visualization: Maximized vertically
+        - AI Summary: Minimized to ~200px at bottom
+        """
+        # Get total window width and height
+        total_width = self.width()
+        total_height = self.height()
+        
+        # Horizontal splitter: Left panel small (320px), right panel gets remaining space
+        left_panel_width = 320
+        right_panel_width = total_width - left_panel_width - 4  # 4px for splitter handle
+        self.mainSplitter.setSizes([left_panel_width, right_panel_width])
+        
+        # Vertical splitter: Visualization large, AI summary small (200px)
+        ai_summary_height = 200
+        visualization_height = total_height - ai_summary_height - 100  # Account for margins/menubar
+        self.verticalSplitter.setSizes([visualization_height, ai_summary_height])
+        
     def connect_signals(self):
         """
         Connect UI signals to slot methods

@@ -193,7 +193,22 @@ QSplitter::handle:hover {
       <property name="handleWidth">
        <number>4</number>
       </property>
+      <property name="childrenCollapsible">
+       <bool>true</bool>
+      </property>
       <widget class="QWidget" name="leftPanel">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>400</width>
+         <height>16777215</height>
+        </size>
+       </property>
        <layout class="QVBoxLayout" name="leftPanelLayout">
         <property name="spacing">
          <number>15</number>
@@ -543,7 +558,7 @@ QProgressBar::chunk {
       <widget class="QWidget" name="rightPanel">
        <layout class="QVBoxLayout" name="rightPanelLayout">
         <property name="spacing">
-         <number>10</number>
+         <number>0</number>
         </property>
         <property name="leftMargin">
          <number>10</number>
@@ -558,86 +573,127 @@ QProgressBar::chunk {
          <number>15</number>
         </property>
         <item>
-         <widget class="QLabel" name="displayLabel">
-          <property name="font">
-           <font>
-            <family>Roboto</family>
-            <pointsize>14</pointsize>
-            <italic>false</italic>
-            <bold>false</bold>
-           </font>
-          </property>
-          <property name="text">
-           <string> Data Visualization</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QFrame" name="displayFrame">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
+         <widget class="QSplitter" name="verticalSplitter">
           <property name="styleSheet">
            <string notr="true">
+QSplitter::handle {
+    background: rgb(40, 55, 68);
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+QSplitter::handle:hover {
+    background: rgb(100, 130, 80);
+}
+           </string>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="handleWidth">
+           <number>4</number>
+          </property>
+          <property name="childrenCollapsible">
+           <bool>true</bool>
+          </property>
+          <widget class="QWidget" name="visualizationWidget">
+           <layout class="QVBoxLayout" name="visualizationLayout">
+            <property name="spacing">
+             <number>10</number>
+            </property>
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="displayLabel">
+              <property name="font">
+               <font>
+                <family>Roboto</family>
+                <pointsize>14</pointsize>
+                <italic>false</italic>
+                <bold>false</bold>
+               </font>
+              </property>
+              <property name="text">
+               <string> Data Visualization</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QFrame" name="displayFrame">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">
 #displayFrame {
     background: rgb(32, 44, 56);
     border: 2px solid rgb(45, 60, 75);
     border-radius: 10px;
 }
-           </string>
-          </property>
-          <property name="frameShape">
-           <enum>QFrame::StyledPanel</enum>
-          </property>
-          <layout class="QVBoxLayout" name="displayFrameLayout">
-           <property name="spacing">
-            <number>0</number>
-           </property>
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
-            <number>0</number>
-           </property>
-           <item>
-            <widget class="QLabel" name="display">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">
+               </string>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::StyledPanel</enum>
+              </property>
+              <layout class="QVBoxLayout" name="displayFrameLayout">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="display">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">
 background: transparent;
 border: none;
-              </string>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
-             <property name="scaledContents">
-              <bool>false</bool>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignCenter</set>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item>
-         <widget class="QFrame" name="aiSummaryFrame">
+                  </string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="scaledContents">
+                  <bool>false</bool>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignCenter</set>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QFrame" name="aiSummaryFrame">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
@@ -792,6 +848,7 @@ padding: 5px;
             </widget>
            </item>
           </layout>
+         </widget>
          </widget>
         </item>
        </layout>
