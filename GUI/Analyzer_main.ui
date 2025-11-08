@@ -1089,7 +1089,7 @@ QLineEdit:focus {
                 <string notr="true">color: rgb(100, 140, 130);</string>
                </property>
                <property name="text">
-                <string>AI Chat Assistant</string>
+                <string>MRG AI Assistant</string>
                </property>
               </widget>
              </item>

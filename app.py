@@ -39,6 +39,42 @@ from modules.peak_detector import PeakDetector
 from utils.config import LLM_CONFIG, EXPORT_SETTINGS, SUPPORTED_FORMATS
 
 
+class ChatWorker(QThread):
+    """
+    Background Worker Thread for AI Chat Responses
+    
+    Handles real-time chat interactions with the local LLM without blocking the UI.
+    """
+    
+    response_ready = pyqtSignal(str)  # Emits the AI's response
+    error = pyqtSignal(str)           # Emits error message
+    
+    def __init__(self, analyzer: LLMAnalyzer, user_message: str, context: Dict):
+        """
+        Initialize chat worker
+        
+        Args:
+            analyzer: LLMAnalyzer instance
+            user_message: User's question/message
+            context: Dictionary containing analysis context (baseline, samples, results)
+        """
+        super().__init__()
+        self.analyzer = analyzer
+        self.user_message = user_message
+        self.context = context
+    
+    def run(self):
+        """Execute chat query with LLM"""
+        try:
+            response = self.analyzer.chat_with_context(
+                self.user_message,
+                self.context
+            )
+            self.response_ready.emit(response)
+        except Exception as e:
+            self.error.emit(f"Chat error: {str(e)}")
+
+
 class AnalysisWorker(QThread):
     """
     Background Worker Thread for Hybrid LLaVA Analysis
@@ -101,7 +137,7 @@ class AnalysisWorker(QThread):
                 # IMPORTANT: Need to assume format_for_llm is implemented in PeakDetector
                 peak_data_string = self.peak_detector.format_for_llm(comparison_results)
                 
-                self.status.emit(f"🤖 [{i+1}/{total_samples}] Running LLaVA vision analysis...")
+                self.status.emit(f" [{i+1}/{total_samples}] Running LLaVA vision analysis...")
                 
                 # --- STEP 2: LLaVA HYBRID ANALYSIS (INTERPRETATION) ---
                 analysis = self.analyzer.analyze_ftir_hybrid( # Renamed function call
@@ -166,8 +202,12 @@ class GreaseAnalyzerApp(QMainWindow):
         self.graph_generator = GraphGenerator()      # Matplotlib graph creation
         self.llm_analyzer = LLMAnalyzer()           # Local LLM (Ollama) for AI analysis
         
-        # Background worker thread
+        # Background worker threads
         self.analysis_worker: Optional[AnalysisWorker] = None
+        self.chat_worker: Optional[ChatWorker] = None
+        
+        # Chat history storage
+        self.chat_history: List[Dict[str, str]] = []  # List of {'role': 'user'/'assistant', 'content': str}
 
         # Set up UI
         self.init_ui()
@@ -198,6 +238,9 @@ class GreaseAnalyzerApp(QMainWindow):
             "2. Upload sample data\n"
             "3. Click 'Generate Analysis' for hybrid AI analysis"
         )
+        
+        # Initialize chat interface
+        self.setup_chat_interface()
 
         self.uploadProgress.setValue(0)
         self.aiProgress.setValue(0)
@@ -308,6 +351,196 @@ class GreaseAnalyzerApp(QMainWindow):
         visualization_height = total_height - ai_summary_height - 100  # Account for margins/menubar
         self.verticalSplitter.setSizes([visualization_height, ai_summary_height])
         
+        # Horizontal splitter for AI area: Summary and Chat panels equal size
+        if hasattr(self, 'aiHorizontalSplitter'):
+            ai_panel_width = right_panel_width // 2
+            self.aiHorizontalSplitter.setSizes([ai_panel_width, ai_panel_width])
+    
+    def setup_chat_interface(self):
+        """
+        Initialize Chat Interface
+        
+        Sets up the chat display with welcome message and configures
+        the input field for user interactions.
+        """
+        welcome_msg = (
+            "<div style='color: #b0b0b0; margin-top: 10px;'>"
+            "I can help you understand your FTIR analysis results. "
+            "Ask me about oxidation levels, contamination or peak changes"
+            "</div>"
+        )
+        self.chatDisplay.setHtml(welcome_msg)
+        self.chatDisplay.setReadOnly(True)
+        
+        # Initially disable chat until data is loaded
+        self.chatInput.setEnabled(False)
+        self.btn_send_message.setEnabled(False)
+        self.chatInput.setPlaceholderText("Load data and run analysis to enable chat...")
+    
+    def enable_chat_interface(self):
+        """Enable chat interface after analysis is complete"""
+        self.chatInput.setEnabled(True)
+        self.btn_send_message.setEnabled(True)
+        self.chatInput.setPlaceholderText("Ask questions about your data analysis...")
+        self.chatInput.setFocus()
+    
+    def send_chat_message(self):
+        """
+        Send User Message to AI Chat
+        
+        Handles user input, displays it in the chat, and sends it to
+        the LLM for processing in a background thread.
+        """
+        user_message = self.chatInput.text().strip()
+        
+        if not user_message:
+            return
+        
+        # Check if analysis has been run
+        if not self.analysis_results:
+            self.append_chat_message(
+                "assistant",
+                "Please run the 'Generate Summary' analysis first before asking questions."
+            )
+            return
+        
+        # Clear input field
+        self.chatInput.clear()
+        
+        # Display user message
+        self.append_chat_message("user", user_message)
+        
+        # Add to chat history
+        self.chat_history.append({'role': 'user', 'content': user_message})
+        
+        # Disable input while processing
+        self.chatInput.setEnabled(False)
+        self.btn_send_message.setEnabled(False)
+        
+        # Show thinking indicator
+        self.append_chat_message("assistant", "Thinking...")
+        
+        # Prepare context for LLM
+        context = self.build_chat_context()
+        
+        # Start background worker
+        self.chat_worker = ChatWorker(self.llm_analyzer, user_message, context)
+        self.chat_worker.response_ready.connect(self.on_chat_response)
+        self.chat_worker.error.connect(self.on_chat_error)
+        self.chat_worker.start()
+    
+    def build_chat_context(self) -> Dict:
+        """
+        Build Context for AI Chat
+        
+        Creates a dictionary containing all relevant analysis data
+        that the AI can reference when answering questions.
+        
+        Returns:
+            Dictionary with baseline, samples, and analysis results
+        """
+        context = {
+            'baseline_name': self.baseline_name,
+            'sample_count': len(self.sample_data_list),
+            'sample_names': [s['name'] for s in self.sample_data_list],
+            'analysis_summary': self.analysis_results.get('summary', ''),
+            'individual_analyses': self.analysis_results.get('individual_results', {}),
+            'current_sample': self.sample_data_list[self.current_sample_index]['name'] if self.sample_data_list else None,
+            'chat_history': self.chat_history[-5:]  # Last 5 exchanges for context
+        }
+        
+        # Add sample statistics for current sample
+        if self.sample_data_list:
+            current_sample = self.sample_data_list[self.current_sample_index]
+            context['current_sample_stats'] = {
+                'quality_score': current_sample['comparison']['quality_score'],
+                'mean_deviation': current_sample['comparison']['mean_deviation_percent'],
+                'correlation': current_sample['comparison']['correlation']
+            }
+        
+        return context
+    
+    def append_chat_message(self, role: str, message: str):
+        """
+        Append Message to Chat Display
+        
+        Formats and displays messages in the chat interface with
+        appropriate styling for user vs assistant messages.
+        
+        Args:
+            role: 'user' or 'assistant'
+            message: Message text to display
+        """
+        current_html = self.chatDisplay.toHtml()
+        
+        if role == "user":
+            color = "#4fc3f7"
+            label = "You"
+        else:  # assistant
+            color = "#81c784"
+            label = "AI Assistant"
+        
+        # Format message with proper HTML escaping
+        formatted_message = message.replace('\n', '<br>')
+        
+        new_message = f"""
+        <div style='margin: 10px 0; padding: 10px; border-radius: 8px; border-left: 3px solid {color};'>
+            <div style='color: {color}; font-weight: bold; margin-bottom: 5px;'>{label}:</div>
+            <div style='color: #d0d0d0;'>{formatted_message}</div>
+        </div>
+        """
+        
+        # Append to existing HTML
+        self.chatDisplay.setHtml(current_html + new_message)
+        
+        # Scroll to bottom
+        scrollbar = self.chatDisplay.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+    
+    def on_chat_response(self, response: str):
+        """
+        Handle AI Chat Response
+        
+        Called when the background worker completes processing.
+        Removes the "Thinking..." message and displays the actual response.
+        """
+        # Remove "Thinking..." message
+        html = self.chatDisplay.toHtml()
+        if "Thinking..." in html:
+            # Remove the last message (thinking indicator)
+            last_div_start = html.rfind('<div style=\'margin: 10px 0;')
+            if last_div_start > 0:
+                html = html[:last_div_start]
+                self.chatDisplay.setHtml(html)
+        
+        # Display actual response
+        self.append_chat_message("assistant", response)
+        
+        # Add to chat history
+        self.chat_history.append({'role': 'assistant', 'content': response})
+        
+        # Re-enable input
+        self.chatInput.setEnabled(True)
+        self.btn_send_message.setEnabled(True)
+        self.chatInput.setFocus()
+    
+    def on_chat_error(self, error_msg: str):
+        """Handle chat error"""
+        # Remove "Thinking..." message
+        html = self.chatDisplay.toHtml()
+        if "Thinking..." in html:
+            last_div_start = html.rfind('<div style=\'margin: 10px 0;')
+            if last_div_start > 0:
+                html = html[:last_div_start]
+                self.chatDisplay.setHtml(html)
+        
+        # Display error
+        self.append_chat_message("assistant", f"❌ {error_msg}")
+        
+        # Re-enable input
+        self.chatInput.setEnabled(True)
+        self.btn_send_message.setEnabled(True)
+        
     def connect_signals(self):
         """Connect UI signals to handlers"""
         self.btn_save.clicked.connect(self.upload_baseline)
@@ -320,6 +553,10 @@ class GreaseAnalyzerApp(QMainWindow):
         
         # Dropdown selection handler
         self.comboBox.currentIndexChanged.connect(self.on_sample_changed)
+        
+        # Chat interface handlers
+        self.btn_send_message.clicked.connect(self.send_chat_message)
+        self.chatInput.returnPressed.connect(self.send_chat_message)
 
         self.actionUpload_BaseLine.triggered.connect(self.upload_baseline)
         self.actionUpload_Samples.triggered.connect(self.upload_samples)
@@ -660,6 +897,17 @@ class GreaseAnalyzerApp(QMainWindow):
         self.aiSummaryText.setText(summary_text)
         self.aiProgress.setValue(100)
         self.btn_invert.setEnabled(True)
+        
+        # Enable chat interface now that analysis is complete
+        self.enable_chat_interface()
+        
+        # Add welcome message to chat
+        welcome_chat_msg = (
+            "Analysis complete! I now have full context about your sample. "
+            "Feel free to ask me questions about the results, specific peaks, "
+            "oxidation levels, or recommendations."
+        )
+        self.append_chat_message("assistant", welcome_chat_msg)
 
         QMessageBox.information(self, "Success", "Hybrid AI analysis completed!")
 
@@ -1048,6 +1296,10 @@ See individual *_graph.png files for visual spectroscopy data.
         if self.analysis_worker and self.analysis_worker.isRunning():
             self.analysis_worker.stop()
             self.analysis_worker.wait()
+        
+        if self.chat_worker and self.chat_worker.isRunning():
+            self.chat_worker.wait()
+        
         event.accept()
 
 

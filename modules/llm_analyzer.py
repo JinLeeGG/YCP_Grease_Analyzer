@@ -244,6 +244,105 @@ Recommendation:
         summary += "═══════════════════════════════════════════════════════════════════\n"
         
         return summary
+    
+    def chat_with_context(self, user_message: str, context: Dict) -> str:
+        """
+        Interactive Chat with Context
+        
+        Allows users to ask questions about their analysis results.
+        The LLM has access to all analysis data and can provide insights.
+        
+        Args:
+            user_message: User's question
+            context: Dictionary containing analysis context
+            
+        Returns:
+            AI assistant's response
+        """
+        if not self.ollama_available:
+            return (
+                "⚠️ Chat unavailable - Ollama not connected.\n\n"
+                f"Please ensure Ollama is running and {self.model} is available."
+            )
+        
+        try:
+            import ollama
+            
+            # Build comprehensive context prompt
+            context_prompt = self._build_chat_context_prompt(context)
+            
+            # Combine context with user message
+            full_prompt = f"""{context_prompt}
+
+USER QUESTION:
+{user_message}
+
+Please provide a helpful, concise answer based on the analysis data above. Be specific and reference actual data points when relevant."""
+            
+            # Call LLM (text-only, no image needed for chat)
+            response = ollama.chat(
+                model=self.model.replace(':7b-v1.6', ''),  # Use base model for chat
+                messages=[{
+                    'role': 'user',
+                    'content': full_prompt
+                }],
+                options={
+                    'temperature': 0.3,      # Slightly higher for conversational tone
+                    'num_predict': 500,      # Shorter responses for chat
+                    'num_ctx': 4096,         # Large context for all data
+                }
+            )
+            
+            return response['message']['content']
+            
+        except Exception as e:
+            return f"❌ Chat error: {str(e)}"
+    
+    def _build_chat_context_prompt(self, context: Dict) -> str:
+        """Build context prompt from analysis data"""
+        
+        prompt = f"""You are an expert FTIR spectroscopy analyst helping a user understand their grease analysis results.
+
+ANALYSIS CONTEXT:
+═══════════════════════════════════════════════════════════════════
+
+Baseline: {context.get('baseline_name', 'N/A')}
+Total Samples: {context.get('sample_count', 0)}
+Samples: {', '.join(context.get('sample_names', []))}
+Currently Viewing: {context.get('current_sample', 'N/A')}
+
+EXECUTIVE SUMMARY:
+{context.get('analysis_summary', 'No summary available')}
+
+"""
+        
+        # Add individual analyses
+        individual = context.get('individual_analyses', {})
+        if individual:
+            prompt += "\nINDIVIDUAL SAMPLE ANALYSES:\n"
+            prompt += "═══════════════════════════════════════════════════════════════════\n"
+            for sample_name, analysis in individual.items():
+                prompt += f"\n{sample_name}:\n{analysis[:500]}...\n"  # Truncate for context size
+        
+        # Add current sample stats
+        current_stats = context.get('current_sample_stats', {})
+        if current_stats:
+            prompt += f"\nCURRENT SAMPLE STATISTICS:\n"
+            prompt += f"Quality Score: {current_stats.get('quality_score', 'N/A')}/100\n"
+            prompt += f"Mean Deviation: {current_stats.get('mean_deviation', 'N/A')}%\n"
+            prompt += f"Correlation: {current_stats.get('correlation', 'N/A')}\n"
+        
+        # Add recent chat history
+        chat_history = context.get('chat_history', [])
+        if chat_history:
+            prompt += "\nRECENT CONVERSATION:\n"
+            for msg in chat_history[-3:]:  # Last 3 messages
+                role = "User" if msg['role'] == 'user' else "Assistant"
+                prompt += f"{role}: {msg['content'][:200]}\n"
+        
+        prompt += "\n═══════════════════════════════════════════════════════════════════\n"
+        
+        return prompt
 
 
 # ============================================================================
