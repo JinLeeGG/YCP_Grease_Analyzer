@@ -656,104 +656,90 @@ class GreaseAnalyzerApp(QMainWindow):
         """
         Save Currently Displayed Graph
         
-        Opens a save file dialog and exports the currently displayed
-        graph using the configured image format (PNG or JPG).
-        Uses the pre-selected save directory as default location.
+        Saves the currently displayed graph to the designated directory
+        using the configured image format (PNG or JPG).
         """
         if not self.sample_data_list:
             QMessageBox.warning(self, "Warning", "No graph to save!")
             return
         
-        # Prepare default filename with configured format
-        sample_name = self.sample_data_list[self.current_sample_index]['name']
-        # Remove existing extension if present
-        base_name = sample_name.rsplit('.', 1)[0] if '.' in sample_name else sample_name
-        default_filename = f"{base_name}.{self.image_format}"
-        default_path = os.path.join(self.save_directory, default_filename)
+        # Check if save directory has been configured
+        if not self.save_directory or self.save_directory == '':
+            QMessageBox.warning(
+                self, 
+                "Warning", 
+                "Please set up the destination path first!\n\n"
+                "Go to: Export → Change Save Directory"
+            )
+            return
         
         # Create directory if it doesn't exist
         os.makedirs(self.save_directory, exist_ok=True)
         
-        # File filter based on selected format
-        if self.image_format == 'png':
-            file_filter = "PNG Files (*.png);;JPG Files (*.jpg);;All Files (*)"
-        else:
-            file_filter = "JPG Files (*.jpg);;PNG Files (*.png);;All Files (*)"
-        
-        # Open save dialog with default path
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Current Graph",
-            default_path,
-            file_filter
-        )
-        
-        if file_path:
-            try:
-                # Regenerate graph with high quality and save in selected format
-                sample = self.sample_data_list[self.current_sample_index]
-                fig = self.graph_generator.create_overlay_graph(
-                    self.baseline_data,
-                    sample['data'],
-                    self.baseline_name,
-                    sample['name']
-                )
-                
-                # Save with appropriate settings for the format
-                if file_path.lower().endswith('.jpg') or file_path.lower().endswith('.jpeg'):
-                    fig.savefig(file_path, dpi=300, bbox_inches='tight', format='jpg', quality=95)
-                else:
-                    fig.savefig(file_path, dpi=300, bbox_inches='tight', format='png')
-                
-                plt.close(fig)
-                QMessageBox.information(self, "Success", f"Graph saved:\n{file_path}")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save graph:\n{str(e)}")
+        try:
+            # Regenerate graph with high quality
+            sample = self.sample_data_list[self.current_sample_index]
+            fig = self.graph_generator.create_overlay_graph(
+                self.baseline_data,
+                sample['data'],
+                self.baseline_name,
+                sample['name']
+            )
+            
+            # Prepare filename with configured format
+            base_name = sample['name'].rsplit('.', 1)[0] if '.' in sample['name'] else sample['name']
+            filename = f"{base_name}_vs_baseline.{self.image_format}"
+            file_path = os.path.join(self.save_directory, filename)
+            
+            # Save with appropriate settings for the format
+            if self.image_format == 'jpg':
+                fig.savefig(file_path, dpi=300, bbox_inches='tight', format='jpg', quality=95)
+            else:
+                fig.savefig(file_path, dpi=300, bbox_inches='tight', format='png')
+            
+            plt.close(fig)
+            QMessageBox.information(
+                self, 
+                "Success", 
+                f"Graph saved as {self.image_format.upper()}:\n{file_path}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save graph:\n{str(e)}")
     
     def save_all_graphs(self):
         """
-        Save All Sample Graphs
+        Save All Sample Overlay Graphs
         
-        Generates and saves overlay graphs for all loaded samples.
+        Generates and saves overlay graphs (sample vs baseline) for all loaded samples.
         Uses the pre-configured save directory and image format.
-        User can optionally change the directory for this batch save.
         """
         if not self.sample_data_list:
             QMessageBox.warning(self, "Warning", "No graphs to save!")
             return
         
-        # Ask if user wants to use the configured directory or choose a new one
-        from PyQt6.QtWidgets import QMessageBox as MB
-        reply = MB.question(
-            self,
-            "Save Location",
-            f"Save all graphs to the configured directory?\n\n{self.save_directory}\n\n"
-            f"Format: {self.image_format.upper()}",
-            MB.StandardButton.Yes | MB.StandardButton.No | MB.StandardButton.Cancel,
-            MB.StandardButton.Yes
-        )
-        
-        if reply == MB.StandardButton.Cancel:
+        if self.baseline_data is None:
+            QMessageBox.warning(self, "Warning", "No baseline data loaded!")
             return
-        elif reply == MB.StandardButton.No:
-            # Select different directory for this batch
-            directory = QFileDialog.getExistingDirectory(
-                self,
-                "Select Directory to Save Graphs",
-                self.save_directory
+        
+        # Check if save directory has been configured
+        if not self.save_directory or self.save_directory == '':
+            QMessageBox.warning(
+                self, 
+                "Warning", 
+                "Please set up the destination path first!\n\n"
+                "Go to: Export → Change Save Directory"
             )
-            if not directory:
-                return
-        else:
-            directory = self.save_directory
+            return
         
         # Create directory if it doesn't exist
-        os.makedirs(directory, exist_ok=True)
+        os.makedirs(self.save_directory, exist_ok=True)
         
         try:
             saved_count = 0
+            
+            # Save all sample overlay graphs
             for sample in self.sample_data_list:
-                # Generate graph for this sample
+                # Generate overlay graph for this sample
                 fig = self.graph_generator.create_overlay_graph(
                     self.baseline_data,
                     sample['data'],
@@ -763,7 +749,7 @@ class GreaseAnalyzerApp(QMainWindow):
                 
                 # Prepare filename with configured format
                 base_name = sample['name'].rsplit('.', 1)[0] if '.' in sample['name'] else sample['name']
-                graph_path = os.path.join(directory, f"{base_name}.{self.image_format}")
+                graph_path = os.path.join(self.save_directory, f"{base_name}_vs_baseline.{self.image_format}")
                 
                 # Save with appropriate settings for the format
                 if self.image_format == 'jpg':
@@ -778,7 +764,7 @@ class GreaseAnalyzerApp(QMainWindow):
             QMessageBox.information(
                 self,
                 "Success",
-                f"{saved_count} graphs saved as {self.image_format.upper()} to:\n{directory}"
+                f"{saved_count} overlay graphs saved as {self.image_format.upper()} to:\n{self.save_directory}"
             )
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save graphs:\n{str(e)}")
@@ -798,8 +784,11 @@ class GreaseAnalyzerApp(QMainWindow):
         dialog_path = Path(__file__).parent / "path.ui"
         dialog = uic.loadUi(dialog_path)
         
-        # Set current values in the dialog
-        dialog.pathDisplay.setText(self.save_directory)
+        # Set current values in the dialog - show "..." if not set
+        if self.save_directory and self.save_directory != '':
+            dialog.pathDisplay.setText(self.save_directory)
+        else:
+            dialog.pathDisplay.setText("...")
         
         # Set format combobox
         if self.image_format == 'png':
@@ -809,10 +798,12 @@ class GreaseAnalyzerApp(QMainWindow):
         
         # Connect browse button
         def browse_directory():
+            # Start from user's home if no directory set
+            start_dir = self.save_directory if self.save_directory else str(Path.home())
             directory = QFileDialog.getExistingDirectory(
                 dialog,
                 "Select Save Directory",
-                self.save_directory
+                start_dir
             )
             if directory:
                 dialog.pathDisplay.setText(directory)
@@ -823,7 +814,7 @@ class GreaseAnalyzerApp(QMainWindow):
         def apply_settings():
             # Get selected directory
             new_directory = dialog.pathDisplay.text()
-            if not new_directory:
+            if not new_directory or new_directory == '...':
                 QMessageBox.warning(dialog, "Warning", "Please select a directory!")
                 return
             

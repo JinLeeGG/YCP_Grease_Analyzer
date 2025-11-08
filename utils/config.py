@@ -87,7 +87,7 @@ SUPPORTED_FORMATS = ['png', 'jpg', 'jpeg']
 # ============================================================================
 # User-configurable export settings (can be changed at runtime)
 EXPORT_SETTINGS = {
-    'save_directory': os.path.expanduser("~/Desktop/grease_analysis_output"),  # Default save location
+    'save_directory': '',             # No default - user must set this before saving
     'image_format': 'png',            # Default image format: 'png' or 'jpg'
 }
 
@@ -95,5 +95,5 @@ EXPORT_SETTINGS = {
 # DEFAULT PATHS
 # ============================================================================
 # Default directory for saving analysis outputs (graphs, reports)
-# Expands to user's Desktop folder
-DEFAULT_SAVE_PATH = os.path.expanduser("~/Desktop/grease_analysis_output")
+# User must configure this before saving graphs
+DEFAULT_SAVE_PATH = ''
