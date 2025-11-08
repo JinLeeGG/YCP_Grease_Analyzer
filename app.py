@@ -247,7 +247,7 @@ class GreaseAnalyzerApp(QMainWindow):
         
         # Create matplotlib figure and canvas
         from matplotlib.figure import Figure
-        self.figure = Figure(figsize=(8, 6), facecolor='white')
+        self.figure = Figure(figsize=(8, 6), facecolor='#1a202c')  # Dark background
         self.canvas = FigureCanvas(self.figure)
         
         # Create navigation toolbar for zoom/pan controls
@@ -390,6 +390,11 @@ class GreaseAnalyzerApp(QMainWindow):
             # Enable sample upload button now that baseline exists
             self.btn_current_filter.setEnabled(True)
             
+            # If samples were already loaded, refresh the display with new baseline
+            if self.sample_data_list:
+                print(f"🔄 Refreshing graphs with new baseline: {self.baseline_name}")
+                self.display_current_sample()
+            
             # Show success message with data info
             QMessageBox.information(
                 self,
@@ -482,13 +487,17 @@ class GreaseAnalyzerApp(QMainWindow):
             # Update combo box
             self.update_sample_combobox()
             
-            # Display first sample
+            # Display first sample automatically
             if self.sample_data_list:
                 self.current_sample_index = 0
+                # Force immediate graph display
+                QApplication.processEvents()  # Process any pending events first
                 self.display_current_sample()
+                QApplication.processEvents()  # Ensure graph is rendered
                 self.btn_invert.setEnabled(True)
                 self.btn_export_current.setEnabled(True)  # Enable export buttons
                 self.btn_export_all.setEnabled(True)
+                print(f"✅ Auto-displayed first sample: {self.sample_data_list[0]['name']}")
             
             QMessageBox.information(
                 self,
@@ -542,10 +551,16 @@ class GreaseAnalyzerApp(QMainWindow):
         with repeated matplotlib operations in Qt.
         """
         if not self.sample_data_list:
+            print("⚠️ Cannot display: No samples loaded")
+            return
+        
+        if self.baseline_data is None:
+            print("⚠️ Cannot display: No baseline loaded")
             return
         
         try:
             sample = self.sample_data_list[self.current_sample_index]
+            print(f"📊 Displaying graph for sample: {sample['name']}")
             
             # Update sample information label
             records = len(sample['data'])
@@ -559,18 +574,22 @@ class GreaseAnalyzerApp(QMainWindow):
                 sample['name']
             )
             
+            print(f"✅ Graph generated successfully")
+            
             # Store the figure for export functionality
             self.current_figure = fig
             
             # Display the graph directly on canvas (interactive with zoom/pan)
             self.update_graph_display(fig)
+            print(f"✅ Graph displayed on canvas")
             self.status_inf.setText(f"STATUS: Displaying {sample['name']}")
             
         except Exception as e:
-            print(f"⚠️ Display error: {str(e)}")
+            print(f"❌ Display error: {str(e)}")
             import traceback
             traceback.print_exc()
             self.status_inf.setText("STATUS: Error displaying graph")
+            QMessageBox.critical(self, "Display Error", f"Failed to display graph:\n{str(e)}")
     
     def update_graph_display(self, fig=None):
         """
