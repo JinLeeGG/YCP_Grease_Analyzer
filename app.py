@@ -257,8 +257,8 @@ class GreaseAnalyzerApp(QMainWindow):
         self.comboBox.addItem("No samples loaded")
         
         # Display AI model configuration information
-        model_name = LLM_CONFIG['model'].replace('llava:', 'LLaVA ').replace('-q4_K_M', ' Q4')
-        self.aiModelInfo.setText(f"Model: {model_name} (Parallel: {LLM_CONFIG['max_workers']} workers)")
+        model_name = LLM_CONFIG['model'].replace('llava:', 'LLaVA ')
+        self.aiModelInfo.setText(f"Model: {model_name}")
         
         # Update export info label
         self.update_export_info()
