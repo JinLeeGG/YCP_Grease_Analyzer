@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SaveSettingsDialog</class>
+ <widget class="QDialog" name="SaveSettingsDialog">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>572</width>
+    <height>140</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>460</width>
+    <height>140</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>1000</width>
+    <height>140</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Change Directory</string>
+  </property>
+  <property name="layoutDirection">
+   <enum>Qt::LeftToRight</enum>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: rgb(28, 38, 48);
+font:15pt &quot;Roboto&quot;;
+color: rgb(220, 225, 230); </string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <layout class="QFormLayout" name="formLayout">
+     <property name="labelAlignment">
+      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+     </property>
+     <item row="0" column="0">
+      <widget class="QLabel" name="label">
+       <property name="minimumSize">
+        <size>
+         <width>140</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="font">
+        <font>
+         <family>Roboto</family>
+         <pointsize>15</pointsize>
+         <italic>false</italic>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: rgb(38, 52, 66)</string>
+       </property>
+       <property name="text">
+        <string>Save Directory</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <item>
+        <widget class="QLineEdit" name="pathDisplay">
+         <property name="minimumSize">
+          <size>
+           <width>150</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QLineEdit:focus {
+    border: 2px solid rgb(100, 130, 80);
+}
+
+QLineEdit:hover {
+    border: 2px solid rgb(100, 130, 80);
+}</string>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="minimumSize">
+        <size>
+         <width>100</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="font">
+        <font>
+         <family>Roboto</family>
+         <pointsize>15</pointsize>
+         <italic>false</italic>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: rgb(38, 52, 66)</string>
+       </property>
+       <property name="text">
+        <string>File Format</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <widget class="QComboBox" name="formatComboBox">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QComboBox {
+    background-color: rgb(38, 52, 66);
+}
+
+QComboBox:hover {
+    border: 2px solid rgb(100, 130, 80);
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 30px;
+}</string>
+         </property>
+         <item>
+          <property name="text">
+           <string>PNG</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>JPG</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="browseButton">
+         <property name="minimumSize">
+          <size>
+           <width>80</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>60</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <family>Roboto</family>
+           <pointsize>15</pointsize>
+           <italic>false</italic>
+           <bold>false</bold>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background: rgb(38, 52, 66);
+    border: 2px solid rgb(50, 68, 85);
+    border-radius: 10px;
+}
+
+QPushButton:hover {
+    border: 2px solid rgb(100, 130, 80);
+    border-radius: 10px;
+}
+
+QPushButton:checked {
+    border: 2px solid rgb(100, 130, 80);
+    border-radius: 10px;
+}
+
+QPushButton:focus {
+    border: 2px solid rgb(100, 130, 80);
+    border-radius: 10px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Select</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="2" column="1">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <property name="topMargin">
+        <number>10</number>
+       </property>
+       <property name="bottomMargin">
+        <number>6</number>
+       </property>
+       <item>
+        <widget class="QPushButton" name="okButton">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background: rgb(38, 52, 66);
+    border: 2px solid rgb(50, 68, 85);
+    border-radius: 10px;
+}
+
+QPushButton:hover {
+    border: 2px solid rgb(100, 130, 80);
+    border-radius: 10px;
+}
+
+QPushButton:checked {
+    border: 2px solid rgb(100, 130, 80);
+    border-radius: 10px;
+}
+
+QPushButton:focus {
+    border: 2px solid rgb(100, 130, 80);
+    border-radius: 10px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Confirm</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="cancelButton">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background: rgb(38, 52, 66);
+    border: 2px solid rgb(50, 68, 85);
+    border-radius: 10px;
+}
+
+QPushButton:hover {
+    border: 2px solid rgb(100, 130, 80);
+    border-radius: 10px;
+}
+
+QPushButton:checked {
+    border: 2px solid rgb(100, 130, 80);
+    border-radius: 10px;
+}
+
+QPushButton:focus {
+    border: 2px solid rgb(100, 130, 80);
+    border-radius: 10px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Cancel</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

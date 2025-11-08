@@ -52,6 +52,8 @@ class GraphGenerator:
         # Configure matplotlib fonts (Unicode support)
         plt.rcParams['font.family'] = 'sans-serif'
         plt.rcParams['axes.unicode_minus'] = False
+        # Enable grid by default
+        plt.rcParams['axes.grid'] = True
     
     def create_overlay_graph(self, 
                            baseline_df: pd.DataFrame,
@@ -90,6 +92,20 @@ class GraphGenerator:
         # Create figure and axes with configured size
         fig, ax = plt.subplots(figsize=self.config['figsize'])
         
+        # Remove .csv extension from names for cleaner legend
+        clean_sample_name = sample_name.replace('.csv', '').replace('.CSV', '')
+        clean_baseline_name = baseline_name.replace('.csv', '').replace('.CSV', '')
+        
+        # Plot sample (blue line) - typically plotted first in FTIR
+        ax.plot(
+            sample_df['X'],
+            sample_df['Y'],
+            color=self.config['sample_color'],
+            linewidth=self.config['sample_linewidth'],
+            alpha=self.config['sample_alpha'],
+            label=clean_sample_name
+        )
+        
         # Plot baseline (green, reference line)
         ax.plot(
             baseline_df['X'],
@@ -97,18 +113,11 @@ class GraphGenerator:
             color=self.config['baseline_color'],
             linewidth=self.config['baseline_linewidth'],
             alpha=self.config['baseline_alpha'],
-            label=f'Baseline: {baseline_name}'
+            label=clean_baseline_name
         )
         
-        # Plot sample (blue, test line)
-        ax.plot(
-            sample_df['X'],
-            sample_df['Y'],
-            color=self.config['sample_color'],
-            linewidth=self.config['sample_linewidth'],
-            alpha=self.config['sample_alpha'],
-            label=f'Sample: {sample_name}'
-        )
+        # Remove automatic padding so lines start at edges
+        ax.margins(x=0, y=0)
         
         # Apply consistent styling (labels, grid, legend)
         self._style_graph(ax)
@@ -134,7 +143,11 @@ class GraphGenerator:
         Returns:
             matplotlib.figure.Figure object
         """
+        # Create figure and axes with configured size
         fig, ax = plt.subplots(figsize=self.config['figsize'])
+        
+        # Remove .csv extension from name for cleaner legend
+        clean_baseline_name = baseline_name.replace('.csv', '').replace('.CSV', '')
         
         ax.plot(
             baseline_df['X'],
@@ -142,8 +155,11 @@ class GraphGenerator:
             color=self.config['baseline_color'],
             linewidth=self.config['baseline_linewidth'],
             alpha=self.config['baseline_alpha'],
-            label=f'Baseline: {baseline_name}'
+            label=clean_baseline_name
         )
+        
+        # Remove automatic padding so line starts at edges
+        ax.margins(x=0, y=0)
         
         self._style_graph(ax)
         
@@ -153,38 +169,81 @@ class GraphGenerator:
         """
         Apply Consistent Graph Styling
         
-        Applies professional styling to graph axes including:
-        - Axis labels with bold font
-        - Grid with dashed lines and subtle transparency
-        - Legend with best auto-positioning
-        - Tight layout to prevent label cutoff
-        
-        This ensures all graphs have consistent, publication-quality appearance.
+        Applies professional FTIR spectroscopy styling:
+        - X-axis: cm-1 (wavenumber) with reversed scale (high to low)
+        - Y-axis: A (absorbance)
+        - Minimal grid
+        - Legend at bottom center (outside plot area)
+        - Clean, publication-ready appearance
         
         Args:
             ax: matplotlib Axes object to style
         """
-        # Set axis labels with bold font for emphasis
-        ax.set_xlabel('Wavelength / Frequency', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Intensity', fontsize=12, fontweight='bold')
+        # Set axis labels in FTIR spectroscopy format
+        ax.set_xlabel('cm-1', fontsize=11)
+        ax.set_ylabel('A', fontsize=11)
         
-        # Add grid for easier value reading
-        ax.grid(
-            True,
-            alpha=self.config['grid_alpha'],
-            linestyle=self.config['grid_linestyle']
-        )
+        # Get the actual X-axis data range to set proper limits
+        import numpy as np
+        x_min, x_max = ax.get_xlim()
         
-        # Add legend with automatic best positioning
+        # Reverse X-axis (high wavenumber on left, low on right)
+        # This is standard for FTIR spectra
+        ax.invert_xaxis()
+        
+        # Set X-axis limits to match data range exactly (no gaps)
+        # After inversion, x_max becomes left edge, x_min becomes right edge
+        ax.set_xlim(right=x_min, left=x_max)
+        
+        # Set Y-axis range and ticks (FTIR standard format with smart ranging)
+        y_min, y_max = ax.get_ylim()
+        
+        # Smart range calculation:
+        # 1. Always start from 0 (so baseline doesn't look disconnected at 4000 cm-1)
+        # 2. Add 10% padding above maximum for breathing room
+        # 3. Round to nearest 0.5 for clean appearance
+        
+        y_start = 0.0  # Always start at 0 for FTIR spectra
+        
+        data_range = y_max - y_min
+        y_data_max = y_max + (data_range * 0.10)  # 10% padding above
+        
+        # Round to nice intervals (nearest 0.5)
+        y_end = np.ceil(y_data_max * 2) / 2     # Round up to nearest 0.5
+        
+        # Ensure at least a 1.0 range for very flat data
+        if (y_end - y_start) < 1.0:
+            y_end = 1.0
+        
+        ax.set_ylim(bottom=y_start, top=y_end)
+        
+        # Set Y-axis ticks at 0.5 intervals
+        y_ticks = np.arange(y_start, y_end + 0.1, 0.5)
+        ax.set_yticks(y_ticks)
+        
+        # Enable grid for easier reading
+        ax.grid(True, alpha=0.3, linestyle='--')
+        
+        # Add legend at bottom center, outside plot area (standard FTIR placement)
         ax.legend(
-            loc='upper right',
-            fontsize=10,
-            framealpha=0.9,  # Semi-transparent background
-            edgecolor='gray'
+            loc='upper center',
+            bbox_to_anchor=(0.5, -0.12),  # Position below the x-axis
+            ncol=2,  # Display items horizontally
+            fontsize=9,
+            frameon=True,
+            framealpha=1.0,
+            edgecolor='black',
+            fancybox=False
         )
         
-        # Use tight layout to prevent axis label cutoff
-        plt.tight_layout()
+        # Clean appearance with box around plot area
+        ax.spines['top'].set_visible(True)
+        ax.spines['right'].set_visible(True)
+        ax.spines['bottom'].set_linewidth(1.0)
+        ax.spines['left'].set_linewidth(1.0)
+        
+        # Use tight layout with padding to accommodate legend below
+        plt.tight_layout(rect=[0, 0.05, 1, 1])
     
     def save_graph(self,
                    fig: plt.Figure,

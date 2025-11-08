@@ -68,8 +68,13 @@ class LLMAnalyzer:
                 return False
             
             return True
+        except ConnectionError as e:
+            print(f"⚠️ Ollama connection failed: Connection refused")
+            print(f"   Please start Ollama service: ollama serve")
+            return False
         except Exception as e:
             print(f"⚠️ Ollama connection failed: {str(e)}")
+            print(f"   Make sure Ollama is installed and running: https://ollama.ai")
             return False
     
     # 2. ACCURACY FIX: New signature for hybrid analysis

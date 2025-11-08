@@ -22,10 +22,10 @@ GRAPH_CONFIG = {
     'figsize': (12, 7),              # Figure dimensions in inches (width, height)
     'dpi': 300,                       # Resolution for saved images (dots per inch)
     'baseline_color': 'green',        # Color for baseline data line
-    'baseline_linewidth': 2.5,        # Thickness of baseline line
+    'baseline_linewidth': 1.0,        # Thickness of baseline line
     'baseline_alpha': 0.9,            # Transparency of baseline line (0=transparent, 1=opaque)
     'sample_color': 'blue',           # Color for sample data line
-    'sample_linewidth': 1.8,          # Thickness of sample line
+    'sample_linewidth': 1.0,          # Thickness of sample line
     'sample_alpha': 0.85,             # Transparency of sample line
     'grid_alpha': 0.3,                # Transparency of grid lines
     'grid_linestyle': '--',           # Grid line style (dashed)
@@ -49,12 +49,12 @@ CSV_CONFIG = {
 # Balanced for speed (3-5x improvement) while maintaining quality
 # Uses parallel processing for analyzing multiple samples simultaneously
 LLM_CONFIG = {
-    'model': 'llama3.2:1b',           # Model: 1B parameters (faster than 3B, good quality)
-    'timeout': 30,                    # Request timeout in seconds (reduced from 60)
+    'model': 'llava:7b-v1.6-q4_K_M',  # Model: LLaVA 7B 4-bit quantized (optimized for vision/text)
+    'timeout': 60,                    # Request timeout in seconds (increased for detailed reports)
     'temperature': 0.3,               # Lower = more consistent/deterministic responses
-    'max_tokens': 250,                # Maximum length of generated response
-    'num_predict': 250,               # Maximum tokens to generate per request
-    'num_ctx': 2048,                  # Context window size (how much text model can process)
+    'max_tokens': 2000,               # Maximum length of generated response (increased for detailed reports)
+    'num_predict': 2000,              # Maximum tokens to generate per request (increased for detailed reports)
+    'num_ctx': 4096,                  # Context window size (increased for peak data)
     'max_workers': 3,                 # Number of parallel threads for batch processing
 }
 
@@ -83,8 +83,17 @@ PDF_CONFIG = {
 SUPPORTED_FORMATS = ['png', 'jpg', 'jpeg']
 
 # ============================================================================
+# EXPORT SETTINGS
+# ============================================================================
+# User-configurable export settings (can be changed at runtime)
+EXPORT_SETTINGS = {
+    'save_directory': '',             # No default - user must set this before saving
+    'image_format': 'png',            # Default image format: 'png' or 'jpg'
+}
+
+# ============================================================================
 # DEFAULT PATHS
 # ============================================================================
 # Default directory for saving analysis outputs (graphs, reports)
-# Expands to user's Desktop folder
-DEFAULT_SAVE_PATH = os.path.expanduser("~/Desktop/grease_analysis_output")
+# User must configure this before saving graphs
+DEFAULT_SAVE_PATH = ''
