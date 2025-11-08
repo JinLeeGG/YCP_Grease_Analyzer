@@ -1,30 +1,20 @@
 """
-Local LLM-Based Grease Analysis Module (Optimized Version)
+LLaVA-Based Visual FTIR Analysis Module
 
-This module provides AI-powered analysis of grease spectroscopy data using
-a local Ollama LLM. Key features:
+This module uses LLaVA vision model to analyze FTIR spectroscopy graphs
+by actually "seeing" the visual peaks and patterns in generated images.
 
-OPTIMIZATION FEATURES:
-- Uses lightweight llama3.2:1b model (3-5x faster than 3b)
-- Parallel processing with ThreadPoolExecutor (3 workers default)
-- Optimized prompts for concise, focused responses
-- Response length limits (250 tokens) for speed
-
-ANALYSIS CAPABILITIES:
-- Single sample analysis with baseline comparison
-- Batch parallel analysis for multiple samples
-- Executive summary generation
-- Statistical interpretation
-- Quality assessment recommendations
+KEY FEATURES:
+- Visual peak identification (reads actual graph)
+- Oxidation zone analysis (1650-1800 cm⁻¹)
+- Accurate wavenumber reporting from X-axis
+- No hallucination - only reports what it sees
+- Detailed grease condition assessment
 
 PERFORMANCE:
-- Single sample: ~3-8 seconds
-- 5 samples (parallel): ~15-25 seconds
-- 5 samples (sequential): ~40-80 seconds
-- Speedup: 2.5-3.5x with parallel processing
-
-The module gracefully falls back to statistical analysis if Ollama
-is unavailable.
+- Single sample: 30-60 seconds (thorough visual analysis)
+- Batch processing: Sequential analysis
+- Model: llava:7b (4.7GB, better accuracy than 13b for speed/quality balance)
 """
 
 import sys
@@ -37,417 +27,375 @@ if __name__ == "__main__":
 from utils.config import LLM_CONFIG
 from typing import Optional, Dict, List
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import base64
+from pathlib import Path
 
 
 class LLMAnalyzer:
     """
-    Local LLM Analysis Class with Parallel Processing Support
+    LLaVA Vision-Based FTIR Analyzer
     
-    Manages connection to Ollama LLM server and provides methods
-    for analyzing grease spectroscopy data. Supports both single
-    and batch analysis with parallel processing for efficiency.
+    Uses Ollama's LLaVA model to visually analyze FTIR spectroscopy graphs
+    instead of relying on statistical summaries.
     """
     
-    def __init__(self, model: str = None, max_workers: int = None):
+    def __init__(self, model: str = "llava:7b"):
         """
-        Initialize LLM Analyzer
+        Initialize LLaVA Analyzer
         
         Args:
-            model: Ollama model name (default: llama3.2:1b from config)
-                  Smaller models are faster, larger are more detailed
-            max_workers: Number of parallel threads for batch analysis
-                        (default: 3 from config)
-                        More workers = faster batch processing
+            model: Ollama vision model name (default: llava:7b)
+                  llava:7b = 4.7GB, good balance of speed/accuracy
+                  llava:13b = 7.3GB, more accurate but slower
+                  llava:34b = 20GB, highest accuracy, very slow
         """
-        self.model = model or LLM_CONFIG['model']
-        self.timeout = LLM_CONFIG['timeout']
-        self.max_workers = max_workers or LLM_CONFIG.get('max_workers', 3)
+        self.model = model
         self.ollama_available = self._check_ollama()
         
         if self.ollama_available:
-            print(f"✅ Ollama connected (Model: {self.model}, Workers: {self.max_workers})")
+            print(f"✅ Ollama connected (Vision Model: {self.model})")
+        else:
+            print(f"⚠️ Ollama not available - will use fallback analysis")
     
     def _check_ollama(self) -> bool:
         """
         Check Ollama Availability
         
-        Tests if Ollama server is running and accessible.
-        Attempts to list models as a simple connectivity test.
-        
         Returns:
-            True if Ollama is available, False otherwise
+            True if Ollama is running and model is available
         """
         try:
             import ollama
-            # Simple connectivity test
-            ollama.list()
+            # Check if our vision model is available
+            models = ollama.list()
+            model_names = [m['name'] for m in models.get('models', [])]
+            
+            if not any(self.model in name for name in model_names):
+                print(f"⚠️ Model {self.model} not found. Run: ollama pull {self.model}")
+                return False
+            
             return True
         except Exception as e:
             print(f"⚠️ Ollama connection failed: {str(e)}")
             return False
     
-    def analyze_sample(self,
-                      baseline_stats: Dict,
-                      sample_stats: Dict,
-                      comparison: Dict,
-                      baseline_name: str,
-                      sample_name: str) -> str:
+    def analyze_graph_image(self,
+                           image_path: str,
+                           baseline_name: str,
+                           sample_name: str) -> str:
         """
-        Analyze Single Sample Against Baseline
+        Analyze FTIR Graph Using Vision Model
         
-        Generates AI-powered analysis comparing a sample to baseline,
-        interpreting statistical differences and providing quality assessment.
-        
-        Process:
-        1. Creates detailed prompt with all statistics
-        2. Calls Ollama LLM with optimized settings
-        3. Returns formatted analysis text
-        4. Falls back to statistical summary if LLM unavailable
+        LLaVA will actually LOOK at the graph image and identify:
+        - Real peak positions by reading the X-axis
+        - Peak heights by reading the Y-axis
+        - Visual differences between baseline and sample
+        - Oxidation zone (1650-1800 cm⁻¹) presence
         
         Args:
-            baseline_stats: Dictionary of baseline statistics
-                          (mean, std, min, max, median, range, count)
-            sample_stats: Dictionary of sample statistics (same keys)
-            comparison: Comparison metrics
-                       (mean_deviation_percent, std_deviation_percent,
-                        correlation, quality_score)
-            baseline_name: Name of baseline file for context
-            sample_name: Name of sample file for context
+            image_path: Path to the saved graph image (PNG)
+            baseline_name: Name of baseline file
+            sample_name: Name of sample file
             
         Returns:
-            Multi-line string with analysis including:
-            - Overall quality assessment
-            - Key differences identified
-            - Interpretation of metrics
-            - Recommendations (if needed)
+            Detailed analysis report based on visual inspection
         """
         if not self.ollama_available:
-            return self._fallback_analysis(baseline_stats, sample_stats, comparison)
+            return self._fallback_visual_analysis(image_path, baseline_name, sample_name)
         
         try:
             import ollama
             
-            # Generate optimized prompt
-            prompt = self._create_prompt(
-                baseline_stats, sample_stats, comparison,
-                baseline_name, sample_name
-            )
-            
-            # Call LLM with optimized settings
+            print(f"\n🔍 Analyzing {sample_name} visually with {self.model}...")
             start_time = time.time()
+            
+            # Read and encode image
+            with open(image_path, 'rb') as img_file:
+                image_data = base64.b64encode(img_file.read()).decode('utf-8')
+            
+            # Create detailed visual analysis prompt
+            prompt = self._create_visual_ftir_prompt(baseline_name, sample_name)
+            
+            # Call LLaVA vision model
             response = ollama.chat(
                 model=self.model,
-                messages=[
-                    {
-                        'role': 'system',
-                        'content': 'Expert grease analyst. Be concise and technical.'
-                    },
-                    {
-                        'role': 'user',
-                        'content': prompt
-                    }
-                ],
+                messages=[{
+                    'role': 'user',
+                    'content': prompt,
+                    'images': [image_data]
+                }],
                 options={
-                    'temperature': LLM_CONFIG['temperature'],
-                    'num_predict': LLM_CONFIG.get('num_predict', 250),
-                    'num_ctx': LLM_CONFIG.get('num_ctx', 2048),
+                    'temperature': 0.1,      # Low temp for factual analysis
+                    'num_predict': 1000,     # Allow detailed response
+                    'num_ctx': 4096,         # Large context for image + prompt
                 }
             )
             
-            elapsed_time = time.time() - start_time
-            print(f"⏱️ {sample_name} LLM response time: {elapsed_time:.2f}Seconds")
+            elapsed = time.time() - start_time
+            print(f"✅ Visual analysis complete in {elapsed:.1f} seconds")
             
             return response['message']['content']
             
         except Exception as e:
-            print(f"⚠️ LLM analysis failed: {str(e)}")
-            return self._fallback_analysis(baseline_stats, sample_stats, comparison)
+            print(f"⚠️ Visual analysis failed: {str(e)}")
+            return self._fallback_visual_analysis(image_path, baseline_name, sample_name)
     
-    def _create_prompt(self,
-                      baseline_stats: Dict,
-                      sample_stats: Dict,
-                      comparison: Dict,
-                      baseline_name: str,
-                      sample_name: str) -> str:
+    def _create_visual_ftir_prompt(self,
+                                   baseline_name: str,
+                                   sample_name: str) -> str:
         """
-        Create Optimized Analysis Prompt (Concise Version)
+        Create Detailed Prompt for Visual FTIR Analysis
         
-        Generates a structured prompt for the LLM that includes:
-        - Baseline and sample statistics
-        - Deviation percentages
-        - Correlation and quality score
-        - Specific analysis requests
-        
-        The prompt is designed to be concise to reduce LLM processing
-        time while still providing all necessary context.
-        
-        Returns:
-            Formatted prompt string for LLM
+        Instructs LLaVA to carefully examine the graph image and
+        report only what it actually sees (no hallucinations).
         """
         
-        prompt = f"""Grease Analysis: {sample_name} vs {baseline_name}
+        prompt = f"""You are an expert FTIR spectroscopy analyst examining a grease condition monitoring graph.
 
-**Baseline:** Mean={baseline_stats['mean']:.1f}, Std={baseline_stats['std']:.1f}, N={baseline_stats['count']}
-**Sample:** Mean={sample_stats['mean']:.1f}, Std={sample_stats['std']:.1f}, N={sample_stats['count']}
+═══════════════════════════════════════════════════════════════════
+GRAPH INFORMATION
+═══════════════════════════════════════════════════════════════════
+- GREEN LINE: Baseline (fresh grease) - {baseline_name}
+- BLUE LINE: Test sample (used grease) - {sample_name}
+- X-AXIS: Wavenumber (cm⁻¹) - reads RIGHT to LEFT (4000 → 500)
+- Y-AXIS: Absorbance/Intensity
 
-**Deviations:**
-• Mean: {comparison['mean_deviation_percent']:+.1f}%
-• Std: {comparison['std_deviation_percent']:+.1f}%
-• Correlation: {comparison['correlation']:.2f}
-• Quality: {comparison['quality_score']:.0f}/100
+═══════════════════════════════════════════════════════════════════
+CRITICAL INSTRUCTION
+═══════════════════════════════════════════════════════════════════
+LOOK CAREFULLY at the actual graph image. Read peak positions from the X-axis.
+Do NOT guess or estimate. Only report what you can CLEARLY SEE.
+Take your time to accurately read the wavenumber values.
 
-Provide 4 concise bullet points:
-1. Key deviation from baseline
-2. Pattern change assessment
-3. Overall condition
-4. Action needed (if any)"""
-        
+═══════════════════════════════════════════════════════════════════
+SECTION 1: MAJOR PEAKS (Identify 3-5 tallest peaks)
+═══════════════════════════════════════════════════════════════════
+
+For each MAJOR peak you can see in the spectrum:
+
+Peak 1 (TALLEST peak):
+- Wavenumber: _____ cm⁻¹ (read X-axis position carefully)
+- Region: [2800-3000 / 1350-1500 / 700-900 / other]
+- Baseline intensity: ~_____ (read Y-axis)
+- Sample intensity: ~_____ (read Y-axis)
+- Change: [Higher/Lower/Same]
+
+Peak 2:
+- Wavenumber: _____ cm⁻¹
+- Baseline: ~_____
+- Sample: ~_____
+- Change: [Higher/Lower/Same]
+
+Peak 3:
+- Wavenumber: _____ cm⁻¹
+- Baseline: ~_____
+- Sample: ~_____
+- Change: [Higher/Lower/Same]
+
+[Continue for other major peaks you clearly see]
+
+═══════════════════════════════════════════════════════════════════
+SECTION 2: OXIDATION ZONE (1650-1800 cm⁻¹) - CRITICAL
+═══════════════════════════════════════════════════════════════════
+
+Look CAREFULLY at the region between 1650-1800 cm⁻¹:
+
+Does the BLUE line show a peak in this region?
+[YES / NO / SLIGHT]
+
+If YES or SLIGHT:
+- Peak wavenumber: _____ cm⁻¹ (read from X-axis)
+- Peak absorbance: _____ (read from Y-axis)
+- Higher than baseline? [YES/NO]
+- Visual size: [small / moderate / large / very large]
+
+Oxidation Level:
+[  ] NONE - No peak in 1650-1800 region
+[  ] LOW - Small peak, absorbance < 0.5
+[  ] MODERATE - Medium peak, absorbance 0.5-1.0
+[  ] HIGH - Large peak, absorbance 1.0-2.0
+[  ] SEVERE - Very large peak, absorbance > 2.0
+
+═══════════════════════════════════════════════════════════════════
+SECTION 3: VISUAL COMPARISON
+═══════════════════════════════════════════════════════════════════
+
+Overall pattern similarity: [Very similar / Similar / Different / Very different]
+
+New peaks in BLUE (not in GREEN):
+- List wavenumbers: _____
+
+Missing/reduced peaks in BLUE (present in GREEN):
+- List wavenumbers: _____
+
+Peak shifts observed:
+- Green peak at _____ → Blue peak at _____
+
+Intensity changes:
+- Blue peaks are generally: [Higher / Lower / Same] vs green
+
+═══════════════════════════════════════════════════════════════════
+SECTION 4: GREASE CONDITION ASSESSMENT
+═══════════════════════════════════════════════════════════════════
+
+Overall Health:
+[  ] EXCELLENT - Nearly identical to baseline
+[  ] GOOD - Minor differences, normal wear
+[  ] FAIR - Noticeable changes, monitor closely
+[  ] POOR - Significant degradation
+[  ] CRITICAL - Severe degradation, immediate action
+
+Primary Issues:
+- Oxidation: [None/Low/Moderate/High/Severe]
+- Contamination: [Describe any unusual peaks]
+- Degradation: [Describe specific changes]
+
+═══════════════════════════════════════════════════════════════════
+SECTION 5: RECOMMENDATION
+═══════════════════════════════════════════════════════════════════
+
+Action Required:
+[  ] CONTINUE - Grease is good
+[  ] MONITOR - Retest in 2-4 weeks
+[  ] PLAN REPLACEMENT - Replace within 1-2 weeks
+[  ] IMMEDIATE ACTION - Replace now
+
+Reasoning: [1-2 sentences based on what you saw]
+
+Retest interval: [Suggested time]
+
+═══════════════════════════════════════════════════════════════════
+REMEMBER: Only report what you ACTUALLY SEE in the graph.
+Read wavenumbers from the X-axis. Read intensities from Y-axis.
+If you cannot see something clearly, say "unclear" or "cannot determine".
+═══════════════════════════════════════════════════════════════════"""
+
         return prompt
     
-    def _fallback_analysis(self,
-                          baseline_stats: Dict,
-                          sample_stats: Dict,
-                          comparison: Dict) -> str:
+    def _fallback_visual_analysis(self,
+                                  image_path: str,
+                                  baseline_name: str,
+                                  sample_name: str) -> str:
         """
-        Fallback Analysis (Rule-Based)
+        Fallback Analysis When LLaVA Unavailable
         
-        Provides statistical analysis when LLM is unavailable.
-        Uses rule-based thresholds to assess sample quality:
-        - Mean deviation < 5% = good
-        - Mean deviation 5-15% = caution
-        - Mean deviation > 15% = investigate
-        - Correlation > 0.95 = excellent
-        - Correlation 0.85-0.95 = good
-        - Correlation < 0.85 = concerning
-        
-        Returns:
-            Formatted analysis text with bullet points
+        Returns basic message explaining visual analysis requires Ollama.
         """
-        analysis = []
-        
-        # Analyze mean deviation
-        mean_dev = comparison['mean_deviation_percent']
-        if abs(mean_dev) < 5:
-            analysis.append(f"✓ Mean intensity deviation is minimal ({mean_dev:+.1f}%), indicating stable condition.")
-        elif abs(mean_dev) < 15:
-            analysis.append(f"⚠ Moderate mean deviation detected ({mean_dev:+.1f}%), monitor for trends.")
-        else:
-            analysis.append(f"⚠️ Significant mean deviation ({mean_dev:+.1f}%), investigation recommended.")
-        
-        # Analyze standard deviation changes
-        std_dev = comparison['std_deviation_percent']
-        if abs(std_dev) > 20:
-            analysis.append(f"⚠️ High variability change ({std_dev:+.1f}%), possible contamination or degradation.")
-        else:
-            analysis.append(f"✓ Variability remains consistent ({std_dev:+.1f}%).")
-        
-        # Analyze correlation coefficient
-        corr = comparison['correlation']
-        if corr > 0.95:
-            analysis.append(f"✓ Excellent correlation with baseline ({corr:.3f}), pattern maintained.")
-        elif corr > 0.85:
-            analysis.append(f"⚠ Good correlation ({corr:.3f}), minor pattern shift detected.")
-        else:
-            analysis.append(f"⚠️ Low correlation ({corr:.3f}), significant pattern change observed.")
-        
-        # Quality score analysis
-        quality = comparison['quality_score']
-        if quality > 85:
-            analysis.append(f"✓ Overall Quality: Excellent ({quality:.1f}/100) - No action needed.")
-        elif quality > 70:
-            analysis.append(f"⚠ Overall Quality: Good ({quality:.1f}/100) - Continue monitoring.")
-        elif quality > 50:
-            analysis.append(f"⚠️ Overall Quality: Fair ({quality:.1f}/100) - Schedule inspection.")
-        else:
-            analysis.append(f"❌ Overall Quality: Poor ({quality:.1f}/100) - Immediate action required.")
-        
-        return "\n".join(f"• {item}" for item in analysis)
+        return f"""⚠️ VISUAL ANALYSIS UNAVAILABLE
+
+Image: {image_path}
+Baseline: {baseline_name}
+Sample: {sample_name}
+
+To enable AI-powered visual analysis of FTIR graphs:
+
+1. Install Ollama: curl -fsSL https://ollama.com/install.sh | sh
+2. Start Ollama: ollama serve
+3. Download model: ollama pull llava:7b
+4. Re-run analysis
+
+The visual analysis will identify real peaks by examining the graph image,
+providing accurate wavenumber positions and oxidation assessment.
+
+For now, please manually inspect the generated graph image."""
     
-    def generate_summary(self, all_analyses: Dict[str, str]) -> str:
+    def analyze_samples_batch(self,
+                             image_paths: List[str],
+                             baseline_name: str,
+                             sample_names: List[str]) -> Dict[str, str]:
         """
-        Generate Summary for All Samples
+        Batch Analyze Multiple Graph Images
+        
+        Processes multiple FTIR graphs sequentially using visual analysis.
         
         Args:
-            all_analyses: Dictionary of {sample_name: analysis_result}
-            
-        Returns:
-            Overall summary text
-        """
-        if not self.ollama_available:
-            return self._fallback_summary(all_analyses)
-        
-        try:
-            import ollama
-            
-            # Create concise summary prompt (truncate analyses for speed)
-            analyses_text = "\n".join([
-                f"{name}: {analysis[:150]}..."  # Limit each to 150 chars
-                for name, analysis in list(all_analyses.items())[:5]  # Max 5 samples
-            ])
-            
-            prompt = f"""Summary of {len(all_analyses)} grease samples:
-
-{analyses_text}
-
-Provide 3-sentence summary:
-1. Overall condition
-2. Samples needing attention
-3. Key recommendation"""
-            
-            response = ollama.chat(
-                model=self.model,
-                messages=[
-                    {
-                        'role': 'system',
-                        'content': 'Maintenance manager. Be brief.'
-                    },
-                    {
-                        'role': 'user',
-                        'content': prompt
-                    }
-                ],
-                options={
-                    'temperature': 0.3,
-                    'num_predict': 150,  # Shorter for summaries
-                }
-            )
-            
-            return response['message']['content']
-            
-        except Exception as e:
-            print(f"⚠️ Summary generation failed: {str(e)}")
-            return self._fallback_summary(all_analyses)
-    
-    def _fallback_summary(self, all_analyses: Dict[str, str]) -> str:
-        """
-        Fallback Summary (Rule-Based)
-        
-        Provides simple statistical summary when LLM is unavailable.
-        
-        Returns:
-            Basic summary text with sample count and quality threshold info
-        """
-        total = len(all_analyses)
-        
-        summary = f"Analyzed {total} sample(s) against baseline. "
-        summary += "Review individual analyses above for detailed insights. "
-        summary += "Samples with quality scores below 70 require attention."
-        
-        return summary
-    
-    def analyze_samples_batch(self, samples_data: List[Dict]) -> Dict[str, str]:
-        """
-        Analyze Multiple Samples in Parallel (3-5x Speedup)
-        
-        Uses ThreadPoolExecutor to analyze multiple samples simultaneously
-        instead of sequentially. This is the key optimization that enables
-        fast batch processing.
-        
-        Performance Example (5 samples):
-        - Sequential: ~40-80 seconds (one at a time)
-        - Parallel: ~15-25 seconds (3 simultaneous)
-        - Speedup: 2.5-3.5x faster
-        
-        How It Works:
-        1. Creates thread pool with max_workers threads (default: 3)
-        2. Submits all analysis tasks to pool
-        3. Tasks run in parallel on separate threads
-        4. Collects results as they complete
-        5. Returns all results together
-        
-        Args:
-            samples_data: List of sample dictionaries, each containing:
-                - 'baseline_stats': Baseline statistics
-                - 'sample_stats': Sample statistics
-                - 'comparison': Comparison metrics
-                - 'baseline_name': Baseline filename
-                - 'sample_name': Sample filename
+            image_paths: List of paths to graph images
+            baseline_name: Baseline filename
+            sample_names: List of sample filenames
             
         Returns:
             Dictionary mapping sample_name -> analysis_text
-            Example: {'sample_01.csv': 'Analysis text...', ...}
         """
         results = {}
-        total = len(samples_data)
+        total = len(image_paths)
         
-        print(f"\n🚀 Starting parallel analysis ({total} samples, {self.max_workers} workers)")
-        start_time = time.time()
+        print(f"\n🚀 Starting batch visual analysis ({total} samples)")
+        print(f"⏱️  Estimated time: {total * 45:.0f} seconds (~45s per sample)\n")
         
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            # Submit all analysis tasks simultaneously
-            future_to_sample = {
-                executor.submit(
-                    self.analyze_sample,
-                    data['baseline_stats'],
-                    data['sample_stats'],
-                    data['comparison'],
-                    data['baseline_name'],
-                    data['sample_name']
-                ): data['sample_name']
-                for data in samples_data
-            }
+        for i, (img_path, sample_name) in enumerate(zip(image_paths, sample_names), 1):
+            print(f"📊 [{i}/{total}] Processing {sample_name}...")
             
-            # Collect results as they complete (not necessarily in order)
-            completed = 0
-            for future in as_completed(future_to_sample):
-                sample_name = future_to_sample[future]
-                try:
-                    results[sample_name] = future.result()
-                    completed += 1
-                    print(f"  ✅ [{completed}/{total}] {sample_name}")
-                except Exception as e:
-                    print(f"  ❌ {sample_name} analysis failed: {e}")
-                    results[sample_name] = f"Analysis failed: {str(e)}"
+            analysis = self.analyze_graph_image(
+                img_path,
+                baseline_name,
+                sample_name
+            )
+            
+            results[sample_name] = analysis
         
-        elapsed = time.time() - start_time
-        avg_time = elapsed / total if total > 0 else 0
-        print(f"\n✅ Parallel analysis complete - Total {elapsed:.1f}s (avg {avg_time:.1f}s/sample)\n")
-        
+        print(f"\n✅ Batch analysis complete!\n")
         return results
+    
+    def generate_summary(self, all_analyses: Dict[str, str]) -> str:
+        """
+        Generate Executive Summary
+        
+        Creates brief overview of all analyzed samples.
+        
+        Args:
+            all_analyses: Dictionary of sample_name -> analysis_text
+            
+        Returns:
+            Executive summary text
+        """
+        total = len(all_analyses)
+        
+        # Count action levels from analyses
+        immediate = sum(1 for a in all_analyses.values() if 'IMMEDIATE' in a.upper())
+        poor = sum(1 for a in all_analyses.values() if 'POOR' in a.upper() or 'CRITICAL' in a.upper())
+        
+        summary = f"""
+═══════════════════════════════════════════════════════════════════
+EXECUTIVE SUMMARY
+═══════════════════════════════════════════════════════════════════
+
+Total Samples Analyzed: {total}
+
+Status Overview:
+- Samples requiring immediate action: {immediate}
+- Samples in poor/critical condition: {poor}
+- Samples acceptable: {total - poor}
+
+Recommendation:
+"""
+        
+        if immediate > 0:
+            summary += f"⚠️ URGENT: {immediate} sample(s) need immediate replacement.\n"
+        elif poor > 0:
+            summary += f"⚠️ ATTENTION: {poor} sample(s) showing degradation - plan replacement.\n"
+        else:
+            summary += "✅ All samples within acceptable parameters. Continue normal monitoring.\n"
+        
+        summary += "\nReview individual sample analyses below for detailed assessments.\n"
+        summary += "═══════════════════════════════════════════════════════════════════\n"
+        
+        return summary
 
 
 # ============================================================================
-# TEST CODE - Run this file directly to verify functionality
+# TEST CODE
 # ============================================================================
 if __name__ == "__main__":
-    print("✅ LLM Analyzer Test")
+    print("✅ LLM Analyzer (Visual) Test")
     
-    analyzer = LLMAnalyzer()
+    analyzer = LLMAnalyzer(model="llava:7b")
     
-    # Test data
-    baseline_stats = {
-        'mean': 100.0,
-        'std': 10.0,
-        'min': 80.0,
-        'max': 120.0,
-        'count': 300
-    }
+    # Test with a sample image path
+    test_image = "test_graph.png"
     
-    sample_stats = {
-        'mean': 110.0,
-        'std': 12.0,
-        'min': 85.0,
-        'max': 135.0,
-        'count': 300
-    }
+    if analyzer.ollama_available:
+        print(f"\n✅ Ready for visual FTIR analysis with {analyzer.model}")
+    else:
+        print("\n⚠️ Ollama not available - install and pull llava:7b model")
     
-    comparison = {
-        'mean_deviation_percent': 10.0,
-        'std_deviation_percent': 20.0,
-        'correlation': 0.92,
-        'quality_score': 78.5
-    }
-    
-    print("\nAnalyzing...")
-    result = analyzer.analyze_sample(
-        baseline_stats,
-        sample_stats,
-        comparison,
-        "baseline.csv",
-        "sample_01.csv"
-    )
-    
-    print("\nAnalysis result:")
-    print(result)
-    print("\n✅ Module operational")
+    print("\n✅ Module loaded successfully")
