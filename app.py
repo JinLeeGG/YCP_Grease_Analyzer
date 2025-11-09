@@ -1247,6 +1247,8 @@ class GreaseAnalyzerApp(QMainWindow):
             # Sync tab selection with combobox
             if self.tab_widget.count() > index:
                 self.tab_widget.setCurrentIndex(index)
+            # Clear the analysis report area when changing samples
+            self.reset_analysis_and_chat()
 
     def reset_analysis_and_chat(self):
         """
