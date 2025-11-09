@@ -266,11 +266,8 @@ class GreaseAnalyzerApp(QMainWindow):
             "4. Click 'Generate Analysis' to analyze the current sample"
         )
         
-        # Initialize chat interface
-        self.setup_chat_interface()
 
         self.uploadProgress.setValue(0)
-        self.aiProgress.setValue(0)
         
         # Disable buttons until baseline is loaded
         self.btn_current_filter.setEnabled(False)  # Upload samples button
@@ -287,9 +284,9 @@ class GreaseAnalyzerApp(QMainWindow):
         self.actionGridMode.setChecked(False)
         self.actionGridMode.setEnabled(False)  # Disabled until samples are loaded
         
-        # Display AI model configuration information
-        model_name = LLM_CONFIG['model'].replace('llava:', 'LLaVA ')
-        self.aiModelInfo.setText(f"Model: {model_name}")
+        # # Display AI model configuration information
+        # model_name = LLM_CONFIG['model'].replace('llava:', 'LLaVA ')
+        # self.aiModelInfo.setText(f"Model: {model_name}")
         
         # Update export info label
         self.update_export_info()
@@ -877,6 +874,11 @@ class GreaseAnalyzerApp(QMainWindow):
         Sets up the chat display with welcome message and configures
         the input field for user interactions.
         """
+        # Check if chat widgets exist in the UI
+        if not hasattr(self, 'chatDisplay'):
+            print("⚠️ Chat interface not available in UI")
+            return
+            
         welcome_msg = (
             "<div style='color: #b0b0b0; margin-top: 10px;'>"
             "I can help you understand your FTIR analysis results. "
@@ -887,16 +889,20 @@ class GreaseAnalyzerApp(QMainWindow):
         self.chatDisplay.setReadOnly(True)
         
         # Initially disable chat until data is loaded
-        self.chatInput.setEnabled(False)
-        self.btn_send_message.setEnabled(False)
-        self.chatInput.setPlaceholderText("Load data and run analysis to enable chat...")
+        if hasattr(self, 'chatInput'):
+            self.chatInput.setEnabled(False)
+            self.chatInput.setPlaceholderText("Load data and run analysis to enable chat...")
+        if hasattr(self, 'btn_send_message'):
+            self.btn_send_message.setEnabled(False)
     
     def enable_chat_interface(self):
         """Enable chat interface after analysis is complete"""
-        self.chatInput.setEnabled(True)
-        self.btn_send_message.setEnabled(True)
-        self.chatInput.setPlaceholderText("Ask questions about your data analysis...")
-        self.chatInput.setFocus()
+        if hasattr(self, 'chatInput'):
+            self.chatInput.setEnabled(True)
+            self.chatInput.setPlaceholderText("Ask questions about your data analysis...")
+            self.chatInput.setFocus()
+        if hasattr(self, 'btn_send_message'):
+            self.btn_send_message.setEnabled(True)
     
     def send_chat_message(self):
         """
@@ -905,6 +911,9 @@ class GreaseAnalyzerApp(QMainWindow):
         Handles user input, displays it in the chat, and sends it to
         the LLM for processing in a background thread.
         """
+        if not hasattr(self, 'chatInput'):
+            return
+            
         user_message = self.chatInput.text().strip()
         
         if not user_message:
@@ -929,7 +938,8 @@ class GreaseAnalyzerApp(QMainWindow):
         
         # Disable input while processing
         self.chatInput.setEnabled(False)
-        self.btn_send_message.setEnabled(False)
+        if hasattr(self, 'btn_send_message'):
+            self.btn_send_message.setEnabled(False)
         
         # Show thinking indicator
         self.append_chat_message("assistant", "Thinking...")
@@ -995,6 +1005,9 @@ class GreaseAnalyzerApp(QMainWindow):
             role: 'user' or 'assistant'
             message: Message text to display
         """
+        if not hasattr(self, 'chatDisplay'):
+            return
+            
         current_html = self.chatDisplay.toHtml()
         
         if role == "user":
@@ -1028,6 +1041,9 @@ class GreaseAnalyzerApp(QMainWindow):
         Called when the background worker completes processing.
         Removes the "Thinking..." message and displays the actual response.
         """
+        if not hasattr(self, 'chatDisplay'):
+            return
+            
         # Remove "Thinking..." message
         html = self.chatDisplay.toHtml()
         if "Thinking..." in html:
@@ -1044,12 +1060,17 @@ class GreaseAnalyzerApp(QMainWindow):
         self.chat_history.append({'role': 'assistant', 'content': response})
         
         # Re-enable input
-        self.chatInput.setEnabled(True)
-        self.btn_send_message.setEnabled(True)
-        self.chatInput.setFocus()
+        if hasattr(self, 'chatInput'):
+            self.chatInput.setEnabled(True)
+            self.chatInput.setFocus()
+        if hasattr(self, 'btn_send_message'):
+            self.btn_send_message.setEnabled(True)
     
     def on_chat_error(self, error_msg: str):
         """Handle chat error"""
+        if not hasattr(self, 'chatDisplay'):
+            return
+            
         # Remove "Thinking..." message
         html = self.chatDisplay.toHtml()
         if "Thinking..." in html:
@@ -1062,6 +1083,11 @@ class GreaseAnalyzerApp(QMainWindow):
         self.append_chat_message("assistant", f"❌ {error_msg}")
         
         # Re-enable input
+        if hasattr(self, 'chatInput'):
+            self.chatInput.setEnabled(True)
+            self.chatInput.setFocus()
+        if hasattr(self, 'btn_send_message'):
+            self.btn_send_message.setEnabled(True)
         self.chatInput.setEnabled(True)
         self.btn_send_message.setEnabled(True)
         
@@ -1077,10 +1103,6 @@ class GreaseAnalyzerApp(QMainWindow):
         
         # Dropdown selection handler
         self.comboBox.currentIndexChanged.connect(self.on_sample_changed)
-        
-        # Chat interface handlers
-        self.btn_send_message.clicked.connect(self.send_chat_message)
-        self.chatInput.returnPressed.connect(self.send_chat_message)
 
         # Menu actions
         self.actionUpload_BaseLine.triggered.connect(self.upload_baseline)
@@ -1225,9 +1247,6 @@ class GreaseAnalyzerApp(QMainWindow):
             # Sync tab selection with combobox
             if self.tab_widget.count() > index:
                 self.tab_widget.setCurrentIndex(index)
-            # In single mode, no need to refresh display (tab shows it)
-            # Reset AI analysis and chat when changing samples
-            self.reset_analysis_and_chat()
 
     def reset_analysis_and_chat(self):
         """
@@ -1248,22 +1267,15 @@ class GreaseAnalyzerApp(QMainWindow):
             "Click 'Generate Analysis' to analyze the current sample."
         )
         
-        # Reset chat display
-        welcome_msg = (
-            "<div style='color: #b0b0b0; margin-top: 10px;'>"
-            "I can help you understand your FTIR analysis results. "
-            "Run analysis first, then ask me about oxidation levels, contamination or peak changes."
-            "</div>"
-        )
-        self.chatDisplay.setHtml(welcome_msg)
-        
-        # Disable chat until new analysis is run
-        self.chatInput.setEnabled(False)
-        self.btn_send_message.setEnabled(False)
-        self.chatInput.setPlaceholderText("Run analysis first to enable chat...")
-        
-        # Reset AI progress bar
-        self.aiProgress.setValue(0)
+        # Reset chat display (if it exists)
+        if hasattr(self, 'chatDisplay'):
+            welcome_msg = (
+                "<div style='color: #b0b0b0; margin-top: 10px;'>"
+                "I can help you understand your FTIR analysis results. "
+                "Run analysis first, then ask me about oxidation levels, contamination or peak changes."
+                "</div>"
+            )
+            self.chatDisplay.setHtml(welcome_msg)
         
         print(f"🔄 Analysis and chat reset for new sample")
 
@@ -1408,7 +1420,8 @@ class GreaseAnalyzerApp(QMainWindow):
             plt.close(fig)
             
             # Start worker thread for background analysis (single sample)
-            self.aiProgress.setValue(0)
+            if hasattr(self, 'aiProgress'):
+                self.aiProgress.setValue(0)
             self.aiSummaryText.setText("🔄 Analyzing current sample... Please wait.")
             self.btn_invert.setEnabled(False)  # Disable button during analysis
             
@@ -1428,14 +1441,16 @@ class GreaseAnalyzerApp(QMainWindow):
             self.analysis_worker.start()
             
         except Exception as e:
-            self.aiProgress.setValue(0)
+            if hasattr(self, 'aiProgress'):
+                self.aiProgress.setValue(0)
             self.status_inf.setText("STATUS: Analysis preparation failed")
             QMessageBox.critical(self, "Error", f"Failed to prepare analysis:\n{str(e)}")
             self.btn_invert.setEnabled(True)
     
     def on_analysis_progress(self, value: int):
         """Update analysis progress bar"""
-        self.aiProgress.setValue(value)
+        if hasattr(self, 'aiProgress'):
+            self.aiProgress.setValue(value)
 
     def on_analysis_status(self, message: str):
         """Update analysis status message"""
@@ -1468,7 +1483,8 @@ class GreaseAnalyzerApp(QMainWindow):
             summary_text += "⚠️ No analysis results found for this sample.\n"
 
         self.aiSummaryText.setText(summary_text)
-        self.aiProgress.setValue(100)
+        if hasattr(self, 'aiProgress'):
+            self.aiProgress.setValue(100)
         self.btn_invert.setEnabled(True)
         
         # Enable chat interface now that analysis is complete
