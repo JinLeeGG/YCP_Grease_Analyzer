@@ -49,13 +49,60 @@ CSV_CONFIG = {
 # Balanced for speed (3-5x improvement) while maintaining quality
 # Uses parallel processing for analyzing multiple samples simultaneously
 LLM_CONFIG = {
-    'model': 'llava:7b-v1.6-q4_K_M',  # Model: LLaVA 7B 4-bit quantized (optimized for vision/text)
-    'timeout': 60,                    # Request timeout in seconds (increased for detailed reports)
-    'temperature': 0.3,               # Lower = more consistent/deterministic responses
-    'max_tokens': 2000,               # Maximum length of generated response (increased for detailed reports)
-    'num_predict': 2000,              # Maximum tokens to generate per request (increased for detailed reports)
-    'num_ctx': 4096,                  # Context window size (increased for peak data)
+    'model': 'llava:7b-v1.6',         # Model: LLaVA 7B (optimized for vision/text)
+    'timeout': 60,                    # Request timeout in seconds
+    'temperature': 0.1,               # Lower = more consistent/deterministic responses
+    'max_tokens': 1000,               # Maximum length of generated response
+    'num_predict': 1000,              # Maximum tokens to generate per request
+    'num_ctx': 2048,                  # Context window size
     'max_workers': 3,                 # Number of parallel threads for batch processing
+    'use_llm_enhancement': True,      # Enable optional LLM enhancement (can be disabled for speed)
+}
+
+# ============================================================================
+# FTIR ANALYZER CONFIGURATION (NEW)
+# ============================================================================
+# Settings for the optimized FTIRAnalyzer - production-ready numerical analysis
+# Provides <1s analysis time with statistical rigor
+FTIR_CONFIG = {
+    # Peak detection thresholds
+    'sigma_multiplier': 3.0,          # Statistical significance (3σ standard)
+    'prominence_pct': 0.10,           # 10% of global max for prominence
+    'major_height_pct': 0.10,         # 10% of global max for major peaks
+    
+    # Peak matching tolerance (wavenumber units: cm⁻¹)
+    'match_tolerance': 10.0,          # ±10 cm⁻¹ default matching tolerance
+    'match_tolerance_loose': 20.0,    # ±20 cm⁻¹ for low resolution instruments
+    'shift_notable': 5.0,             # >5 cm⁻¹ shift is notable
+    'shift_significant': 10.0,        # >10 cm⁻¹ shift is significant
+    
+    # Critical regions for grease analysis (wavenumber ranges in cm⁻¹)
+    'oxidation_region': (1650, 1800), # Carbonyl/oxidation primary indicator
+    'water_region': (3200, 3600),     # O-H stretch/water contamination
+    'glycol_region': (1000, 1300),    # Additives/glycol contamination
+    'ch_region': (2850, 2950),        # C-H stretch (internal reference)
+    
+    # Decision thresholds (percentage changes)
+    'oxidation_critical': 0.50,       # >50% increase = critical, replace immediately
+    'oxidation_moderate': 0.30,       # 30-50% increase = moderate, schedule maintenance
+    'oxidation_low': 0.10,            # 10-30% increase = low, monitor closely
+    'water_threshold': 0.12,          # Absorbance threshold for water detection
+    
+    # Preprocessing parameters
+    'smooth_window': 7,               # Savitzky-Golay smoothing window
+    'smooth_poly': 3,                 # Polynomial order for smoothing
+    'noise_quiet_region': (2200, 2400),  # Quiet region for noise estimation
+}
+
+# ============================================================================
+# ANALYSIS MODE CONFIGURATION (NEW)
+# ============================================================================
+# Control the analysis pipeline behavior
+ANALYSIS_MODE = {
+    'use_ftir_analyzer': True,        # Use optimized FTIRAnalyzer (recommended)
+    'use_llm_enhancement': True,      # Enhance with LLM (optional, slower)
+    'fallback_to_ftir': True,         # Always fallback to FTIR if LLM fails
+    'parallel_processing': True,      # Enable parallel batch processing
 }
 
 # ============================================================================
