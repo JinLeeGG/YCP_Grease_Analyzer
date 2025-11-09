@@ -772,11 +772,6 @@ class GreaseAnalyzerApp(QMainWindow):
         try:
             sample = self.sample_data_list[self.current_sample_index]
             print(f"📊 Displaying graph for sample: {sample['name']}")
-            
-            # Update sample information label
-            records = len(sample['data'])
-            quality = sample['comparison']['quality_score']
-            self.sampleInfo.setText(f"Records: {records} | Quality: {quality:.1f}/100")
 
             # Generate graph
             fig = self.graph_generator.create_overlay_graph(
