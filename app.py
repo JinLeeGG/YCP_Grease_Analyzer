@@ -2297,24 +2297,45 @@ See individual *_graph.png files for visual spectroscopy data.
         """Show documentation dialog"""
         QMessageBox.information(
             self, "Documentation",
-            "GreaseGraph - FTIR Analysis with AI\n\n"
-            "1. Upload baseline data (reference)\n"
-            "2. Upload sample files\n"
-            "3. Select a sample from dropdown\n"
-            "4. Generate AI analysis for current sample\n"
-            "5. Change samples to analyze each one\n"
-            "6. Export results\n\n"
-            "Analysis is per sample - chat resets when you change samples!"
+            "GreaseGraph - FTIR Spectroscopy Analysis Tool\n\n"
+            "📊 WORKFLOW:\n"
+            "1. Upload Baseline: Load reference/control data (CSV format)\n"
+            "2. Upload Samples: Load one or more sample files for analysis\n"
+            "3. View Graphs: Use tabs to view individual samples or grid mode for comparison\n"
+            "4. Execute Analysis: Run numerical deviation analysis on all samples\n"
+            "5. Review Results: Check detailed analysis results in the summary panel\n"
+            "6. Export: Save graphs (PNG/JPG) or generate PDF reports\n\n"
+            "💡 TIPS:\n"
+            "• Grid Mode: Compare multiple samples side-by-side\n"
+            "• Analysis: Automatic peak detection and deviation calculation\n"
+            "• PDF Reports: Generate comprehensive analysis reports\n"
+            "• Configure export directory in Export → Change Directory\n\n"
+            "⚙️ REQUIREMENTS:\n"
+            "• CSV files with wavenumber and absorbance data"
         )
 
     def show_about(self):
         """Show about dialog"""
         QMessageBox.about(
             self, "About",
-            f"<h3>GreaseGraph - FTIR Analysis</h3>"
-            f"<p><b>AI Model:</b> {self.llm_analyzer.model}</p>"
-            f"<p>Uses LLaVA vision model with numerical data injection for accuracy</p>"
-            f"<p>© 2025 Schneider Prize Team</p>"
+            f"<h3>GreaseGraph</h3>"
+            f"<p><b>Version:</b> 1.0.0</p>"
+            f"<p><b>FTIR Spectroscopy Analysis Tool</b></p>"
+            f"<hr>"
+            f"<p><b>Features:</b></p>"
+            f"<ul>"
+            f"<li>Automated Peak Detection & Analysis</li>"
+            f"<li>Interactive Graph Visualization</li>"
+            f"<li>Multi-Sample Comparison (Tab & Grid Modes)</li>"
+            f"<li>Deviation & Correlation Analysis</li>"
+            f"<li>PDF Report Generation</li>"
+            f"<li>High-Quality Graph Export (PNG/JPG)</li>"
+            f"</ul>"
+            f"<hr>"
+            f"<p><b>Technology Stack:</b></p>"
+            f"<p>Python • PyQt6 • Matplotlib • Pandas • NumPy</p>"
+            f"<hr>"
+            f"<p><b>Developed by:</b>Team Tome from Dickinson College</p>"
         )
 
     def resizeEvent(self, event):
