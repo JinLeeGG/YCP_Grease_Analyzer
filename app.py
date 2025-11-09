@@ -246,7 +246,7 @@ class GreaseAnalyzerApp(QMainWindow):
         Sets default values, disables buttons until data is loaded,
         and configures display areas for graphs and text.
         """
-        self.setWindowTitle("Grease Analyzer - PyQt6 Edition")
+        self.setWindowTitle("GreaseGraph")
         
         # Set application icon/logo
         logo_path = Path(__file__).parent / "GUI" / "logo.png"
@@ -2297,7 +2297,7 @@ See individual *_graph.png files for visual spectroscopy data.
         """Show documentation dialog"""
         QMessageBox.information(
             self, "Documentation",
-            "Grease Analyzer with Hybrid AI\n\n"
+            "GreaseGraph - FTIR Analysis with AI\n\n"
             "1. Upload baseline data (reference)\n"
             "2. Upload sample files\n"
             "3. Select a sample from dropdown\n"
@@ -2311,7 +2311,7 @@ See individual *_graph.png files for visual spectroscopy data.
         """Show about dialog"""
         QMessageBox.about(
             self, "About",
-            f"<h3>Grease Analyzer - Hybrid AI</h3>"
+            f"<h3>GreaseGraph - FTIR Analysis</h3>"
             f"<p><b>AI Model:</b> {self.llm_analyzer.model}</p>"
             f"<p>Uses LLaVA vision model with numerical data injection for accuracy</p>"
             f"<p>© 2025 Schneider Prize Team</p>"
