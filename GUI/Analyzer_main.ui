@@ -603,6 +603,34 @@ QPushButton:disabled {
             </widget>
            </item>
            <item>
+            <widget class="QPushButton" name="btn_generate_pdf_report">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>50</height>
+              </size>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">QPushButton {
+    background: rgb(50, 68, 88);
+    border: 2px solid rgb(70, 100, 130);
+}
+
+QPushButton:hover {
+    background: rgb(70, 100, 130);
+    border: 2px solid rgb(90, 130, 160);
+}
+
+QPushButton:pressed {
+    background: rgb(40, 60, 80);
+}</string>
+             </property>
+             <property name="text">
+              <string>📄 Generate PDF Report</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QLabel" name="exportInfo">
              <property name="font">
               <font>

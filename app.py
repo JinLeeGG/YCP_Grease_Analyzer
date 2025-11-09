@@ -34,6 +34,7 @@ from PyQt6.QtGui import QPixmap, QIcon
 import sys
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional
 import pandas as pd
@@ -46,6 +47,7 @@ from matplotlib.figure import Figure
 from modules.csv_processor import CSVProcessor
 from modules.graph_generator import GraphGenerator
 from modules.llm_analyzer import LLMAnalyzer  # Now includes FTIRAnalyzer internally
+from modules.pdf_exporter import PDFExporter
 from utils.config import LLM_CONFIG, EXPORT_SETTINGS, SUPPORTED_FORMATS
 
 
@@ -226,6 +228,7 @@ class GreaseAnalyzerApp(QMainWindow):
             model=LLM_CONFIG.get('model', 'llava:7b-v1.6'),
             use_llm=LLM_CONFIG.get('use_llm_enhancement', True)
         )  # Local LLM (Ollama) for AI analysis - reads config
+        self.pdf_exporter = PDFExporter()            # PDF report generator
         
         # Background worker threads
         self.analysis_worker: Optional[AnalysisWorker] = None
@@ -273,6 +276,7 @@ class GreaseAnalyzerApp(QMainWindow):
         self.btn_invert.setEnabled(False)          # Generate analysis button
         self.btn_export_current.setEnabled(False)  # Export current graph button
         self.btn_export_all.setEnabled(False)      # Export all graphs button
+        self.btn_generate_pdf_report.setEnabled(False)  # Generate PDF report button
         
         # Initialize sample dropdown menu
         self.comboBox.clear()
@@ -1099,6 +1103,7 @@ class GreaseAnalyzerApp(QMainWindow):
         # Export button handlers
         self.btn_export_current.clicked.connect(self.save_current_graph)
         self.btn_export_all.clicked.connect(self.save_all_graphs)
+        self.btn_generate_pdf_report.clicked.connect(self.generate_pdf_report)
         
         # Dropdown selection handler
         self.comboBox.currentIndexChanged.connect(self.on_sample_changed)
@@ -1448,17 +1453,19 @@ class GreaseAnalyzerApp(QMainWindow):
         sample_name = current_sample['name']
         
         # Build analysis display text for single sample
-        summary_text = "🤖 Hybrid AI Analysis Results\n"
+        summary_text = "=" * 70 + "\n"
+        summary_text += "GRAPH ANALYSIS RESULTS\n"
         summary_text += "=" * 70 + "\n\n"
-        summary_text += f"� Sample: {sample_name}\n\n"
-        summary_text += "=" * 70 + "\n\n"
+        summary_text += f"SAMPLE: {sample_name}\n"
+        summary_text += "-" * 70 + "\n\n"
         
         # Display analysis for the sample
         if sample_name in results['individual_results']:
             analysis = results['individual_results'][sample_name]
             summary_text += analysis + "\n\n"
-            summary_text += "=" * 70 + "\n\n"
-            summary_text += "📈 Sample Statistics:\n\n"
+            summary_text += "-" * 70 + "\n"
+            summary_text += "📈 SAMPLE STATISTICS\n"
+            summary_text += "-" * 70 + "\n"
             summary_text += f"Quality Score: {current_sample['comparison']['quality_score']:.1f}/100\n"
             summary_text += f"Mean Deviation: {current_sample['comparison']['mean_deviation_percent']:+.1f}%\n"
             summary_text += f"Correlation: {current_sample['comparison']['correlation']:.3f}\n"
@@ -1469,6 +1476,9 @@ class GreaseAnalyzerApp(QMainWindow):
         if hasattr(self, 'aiProgress'):
             self.aiProgress.setValue(100)
         self.btn_invert.setEnabled(True)
+        
+        # Enable PDF export button after analysis is complete
+        self.btn_generate_pdf_report.setEnabled(True)
         
         # Enable chat interface now that analysis is complete
         self.enable_chat_interface()
@@ -1707,6 +1717,150 @@ class GreaseAnalyzerApp(QMainWindow):
         else:
             # Prompt user to configure directory
             self.exportInfo.setText(f"Format: {self.image_format.upper()} | Set directory...")
+    
+    def generate_pdf_report(self):
+        """
+        Generate Professional PDF Report
+        
+        Creates a comprehensive PDF report containing:
+        - Cover page with metadata
+        - Executive summary
+        - Individual sample analyses with metrics
+        - Embedded overlay graphs
+        
+        Requires analysis to be completed first.
+        """
+        if not self.analysis_results:
+            QMessageBox.warning(
+                self, 
+                "Warning", 
+                "No analysis results available!\n\n"
+                "Please run 'Generate Analysis' first."
+            )
+            return
+        
+        if not self.sample_data_list:
+            QMessageBox.warning(self, "Warning", "No samples loaded!")
+            return
+        
+        try:
+            # Ask user for save location
+            default_filename = f"FTIR_Analysis_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            save_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save PDF Report",
+                os.path.join(self.save_directory, default_filename),
+                "PDF Files (*.pdf)"
+            )
+            
+            if not save_path:
+                return  # User cancelled
+            
+            # Show progress
+            self.status_inf.setText("STATUS: Generating PDF report...")
+            QApplication.processEvents()  # Update UI
+            
+            # Prepare analysis data for PDF export
+            individual_results = self.analysis_results.get('individual_results', {})
+            summary = self.analysis_results.get('summary', 'Analysis completed.')
+            
+            # Collect graph paths - try to find saved graphs or use temp graphs
+            graph_paths = []
+            temp_dir = Path(self.save_directory) / "temp_analysis"
+            
+            for sample_name in individual_results.keys():
+                # Look for existing graph
+                clean_name = sample_name.replace('.csv', '')
+                
+                # Check temp directory first
+                temp_graph = temp_dir / f"analysis_{clean_name}.png"
+                if temp_graph.exists():
+                    graph_paths.append(str(temp_graph))
+                else:
+                    # Try save directory
+                    save_graph = Path(self.save_directory) / f"{clean_name}.{self.image_format}"
+                    if save_graph.exists():
+                        graph_paths.append(str(save_graph))
+                    else:
+                        # Generate graph on the fly
+                        for sample in self.sample_data_list:
+                            if sample['name'] == sample_name:
+                                fig = self.graph_generator.create_overlay_graph(
+                                    self.baseline_data,
+                                    sample['data'],
+                                    self.baseline_name,
+                                    sample_name
+                                )
+                                temp_path = temp_dir / f"pdf_temp_{clean_name}.png"
+                                temp_dir.mkdir(parents=True, exist_ok=True)
+                                fig.savefig(temp_path, dpi=300, bbox_inches='tight', facecolor='white')
+                                plt.close(fig)
+                                graph_paths.append(str(temp_path))
+                                break
+            
+            # Generate PDF
+            success = self.pdf_exporter.export_analysis_report(
+                output_path=save_path,
+                baseline_name=self.baseline_name,
+                analyses=individual_results,
+                executive_summary=summary,
+                graph_paths=graph_paths if graph_paths else None
+            )
+            
+            if success:
+                self.status_inf.setText("STATUS: PDF report generated successfully!")
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    f"PDF report saved successfully!\n\n"
+                    f"Location: {save_path}\n\n"
+                    f"Samples included: {len(individual_results)}"
+                )
+                
+                # Ask if user wants to open the PDF
+                reply = QMessageBox.question(
+                    self,
+                    "Open PDF?",
+                    "Would you like to open the PDF report now?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                
+                if reply == QMessageBox.StandardButton.Yes:
+                    # Open PDF with default system viewer
+                    if sys.platform == 'win32':
+                        os.startfile(save_path)
+                    elif sys.platform == 'darwin':  # macOS
+                        os.system(f'open "{save_path}"')
+                    else:  # Linux
+                        os.system(f'xdg-open "{save_path}"')
+            else:
+                self.status_inf.setText("STATUS: PDF generation failed!")
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    "Failed to generate PDF report.\n\n"
+                    "Make sure the 'reportlab' package is installed:\n"
+                    "pip install reportlab"
+                )
+                
+        except ImportError as e:
+            QMessageBox.critical(
+                self,
+                "Missing Dependency",
+                f"PDF export requires the 'reportlab' library.\n\n"
+                f"Please install it using:\n"
+                f"pip install reportlab\n\n"
+                f"Error: {str(e)}"
+            )
+        except Exception as e:
+            self.status_inf.setText("STATUS: PDF generation failed!")
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to generate PDF report:\n\n{str(e)}"
+            )
+            import traceback
+            traceback.print_exc()
     
     def show_documentation(self):
         """

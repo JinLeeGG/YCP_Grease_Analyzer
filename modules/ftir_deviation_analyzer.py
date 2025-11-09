@@ -789,24 +789,25 @@ class FTIRDeviationAnalyzer:
         """
         lines = []
         
-        lines.append("=" * 70)
-        lines.append(f"SPECTRAL OVERLAY DEVIATION ANALYSIS: {sample_name}")
-        lines.append("=" * 70)
+        # Header with sample name
+        lines.append("┏" + "━" * 68 + "┓")
+        lines.append(f"┃ {'SPECTRAL DEVIATION ANALYSIS':^66} ┃")
+        lines.append("┗" + "━" * 68 + "┛")
         lines.append("")
         
-        # Baseline compatibility
-        lines.append("BASELINE COMPATIBILITY CHECK:")
-        lines.append(f"├─ Spectral Correlation: {compatibility['correlation']:.3f}")
+        # Baseline compatibility - more compact
+        lines.append("┌─ BASELINE COMPATIBILITY")
+        lines.append(f"│  Correlation: r = {compatibility['correlation']:.3f}")
         if compatibility['warning']:
-            lines.append(f"└─ ⚠️ {compatibility['warning']}")
+            lines.append(f"└─ ⚠️  {compatibility['warning']}")
         else:
-            lines.append(f"└─ ✓ Excellent correlation")
+            lines.append(f"└─ ✅ Excellent spectral match")
         lines.append("")
         
-        # Multi-metric category
-        lines.append("╔═══════════════════════════════════════════════════════════════════╗")
-        lines.append("║ MULTI-METRIC CATEGORIZATION (Primary Decision System)            ║")
-        lines.append("╚═══════════════════════════════════════════════════════════════════╝")
+        # Multi-metric category - cleaner box
+        lines.append("┌" + "─" * 68 + "┐")
+        lines.append("│ " + "MULTI-METRIC CATEGORIZATION".center(66) + " │")
+        lines.append("└" + "─" * 68 + "┘")
         lines.append("")
         
         category_emoji = {
@@ -818,63 +819,88 @@ class FTIRDeviationAnalyzer:
         }
         
         emoji = category_emoji.get(multi_metric_result['category'], '❓')
-        lines.append(f"**Final Category:** {emoji} {multi_metric_result['category']}")
-        lines.append(f"**Confidence:** {multi_metric_result['confidence']*100:.0f}%")
+        lines.append(f"Status: {emoji} {multi_metric_result['category']}")
+        lines.append(f"Confidence: {multi_metric_result['confidence']*100:.0f}%")
         lines.append("")
-        lines.append("**Decision Logic:**")
-        for reason in multi_metric_result['reasoning']:
+        lines.append("Decision Logic:")
+        for i, reason in enumerate(multi_metric_result['reasoning'], 1):
             if reason:  # Skip empty strings
-                lines.append(f"  {reason}")
+                lines.append(f"  {i}. {reason}")
         lines.append("")
-        lines.append("**Metrics Used:**")
+        lines.append("Key Metrics:")
         metrics = multi_metric_result['metrics']
-        lines.append(f"  • Spectral Correlation (r): {metrics['correlation']:.3f}")
-        lines.append(f"  • Max ΔY (vertical): {metrics['max_delta_y']:.3f} A")
-        lines.append(f"  • Max ΔX (horizontal): {metrics['max_delta_x']:.1f} cm⁻¹")
-        lines.append(f"  • ΔX:ΔY ratio: {metrics['ratio']:.1f}")
-        lines.append(f"  • Critical outliers: {metrics['critical_outliers']}")
+        lines.append(f"  • Correlation (r): {metrics['correlation']:.3f}")
+        lines.append(f"  • Max ΔY: {metrics['max_delta_y']:.3f} A (intensity deviation)")
+        # Better handling of zero shifts
+        if metrics['max_delta_x'] < 0.1:
+            lines.append(f"  • Max ΔX: No significant shift detected")
+        else:
+            lines.append(f"  • Max ΔX: {metrics['max_delta_x']:.1f} cm⁻¹ (peak shift)")
+        
+        # Better ratio interpretation
+        if metrics['ratio'] < 0.1:
+            lines.append(f"  • ΔX:ΔY Ratio: Intensity-dominant deviation")
+        elif metrics['ratio'] > 100:
+            lines.append(f"  • ΔX:ΔY Ratio: Shift-dominant deviation")
+        else:
+            lines.append(f"  • ΔX:ΔY Ratio: {metrics['ratio']:.1f}")
+        
+        lines.append(f"  • Critical Outliers: {metrics['critical_outliers']}")
         lines.append("")
         
-        # Critical regions detail
-        lines.append("CRITICAL REGIONS - DEVIATION ANALYSIS:")
+        # Critical regions detail - cleaner format
+        lines.append("┌" + "─" * 68 + "┐")
+        lines.append("│ " + "CRITICAL REGIONS ANALYSIS".center(66) + " │")
+        lines.append("└" + "─" * 68 + "┘")
         lines.append("")
         
         for i, rd in enumerate(region_deviations, 1):
             alert_emoji = {
-                'superimposed': '✓',
+                'superimposed': '✅',
                 'minor': '⚠️',
                 'major': '❌',
                 'critical': '🚨'
             }
             emoji = alert_emoji.get(rd.alert_level, '❓')
             
-            lines.append(f"Region {i}: {rd.region_name.replace('_', ' ').title()} ({rd.region_range[0]}-{rd.region_range[1]} cm⁻¹)")
-            lines.append(f"├─ Max vertical deviation (ΔY): {rd.max_delta_y:+.3f} A at {rd.max_delta_y_wavenumber:.0f} cm⁻¹")
+            # Region header
+            region_title = rd.region_name.replace('_', ' ').title()
+            lines.append(f"Region {i}: {region_title} ({rd.region_range[0]:.0f}-{rd.region_range[1]:.0f} cm⁻¹)")
+            
+            # Vertical deviation
+            lines.append(f"  ├─ ΔY: {rd.max_delta_y:+.3f} A at {rd.max_delta_y_wavenumber:.0f} cm⁻¹")
             if rd.max_delta_y_pct > 0:
-                lines.append(f"│  └─ Relative change: {rd.max_delta_y_pct:+.1f}% from baseline")
-            lines.append(f"├─ Horizontal shift (ΔX): {rd.max_delta_x:+.1f} cm⁻¹")
-            lines.append(f"├─ ΔX:ΔY ratio: {rd.delta_x_delta_y_ratio:.2f} (raw value)")
-            lines.append(f"└─ Status: {emoji} {rd.alert_level.upper()} - {rd.reasoning}")
+                lines.append(f"  │   └─ {rd.max_delta_y_pct:+.1f}% relative to baseline")
+            
+            # Horizontal shift
+            if abs(rd.max_delta_x) < 0.1:
+                lines.append(f"  ├─ ΔX: No significant shift")
+            else:
+                lines.append(f"  ├─ ΔX: {rd.max_delta_x:+.1f} cm⁻¹")
+            
+            # Status with interpretation
+            lines.append(f"  └─ {emoji} {rd.alert_level.upper()}: {rd.reasoning}")
             lines.append("")
         
-        # Outliers summary
+        # Outliers summary - more compact
         if outliers:
             critical_outliers = [o for o in outliers if o.severity == 'critical']
             major_outliers = [o for o in outliers if o.severity == 'major']
             
-            lines.append("OUTLIER DETECTION (Full Spectrum):")
-            lines.append(f"Total outliers: {len(outliers)} (Critical: {len(critical_outliers)}, Major: {len(major_outliers)})")
+            lines.append("┌─ OUTLIER DETECTION (Full Spectrum)")
+            lines.append(f"│  Total: {len(outliers)} points (Critical: {len(critical_outliers)}, Major: {len(major_outliers)})")
             
             if critical_outliers:
-                lines.append("")
-                lines.append("Critical outliers (top 3):")
+                lines.append("│")
+                lines.append("│  Top 3 Critical Outliers:")
                 for o in sorted(critical_outliers, key=lambda x: x.delta_y, reverse=True)[:3]:
-                    lines.append(f"  • {o.wavenumber:.0f} cm⁻¹: ΔY = {o.delta_y:.3f} A ({o.sigma_level:.1f}σ)")
+                    lines.append(f"│    • {o.wavenumber:.0f} cm⁻¹: ΔY = {o.delta_y:.3f} A ({o.sigma_level:.1f}σ)")
+            lines.append("└─")
         else:
-            lines.append("OUTLIER DETECTION: No significant outliers detected")
+            lines.append("┌─ OUTLIER DETECTION")
+            lines.append("└─ ✅ No significant outliers detected")
         
         lines.append("")
-        lines.append("=" * 70)
         
         return "\n".join(lines)
 
