@@ -790,24 +790,24 @@ class FTIRDeviationAnalyzer:
         lines = []
         
         # Header with sample name
-        lines.append("┏" + "━" * 68 + "┓")
-        lines.append(f"┃ {'SPECTRAL DEVIATION ANALYSIS':^66} ┃")
-        lines.append("┗" + "━" * 68 + "┛")
+        lines.append("=" * 70)
+        lines.append("SPECTRAL DEVIATION ANALYSIS")
+        lines.append("=" * 70)
         lines.append("")
         
         # Baseline compatibility - more compact
-        lines.append("┌─ BASELINE COMPATIBILITY")
-        lines.append(f"│  Correlation: r = {compatibility['correlation']:.3f}")
+        lines.append("BASELINE COMPATIBILITY")
+        lines.append(f"  Correlation: r = {compatibility['correlation']:.3f}")
         if compatibility['warning']:
-            lines.append(f"└─ ⚠️  {compatibility['warning']}")
+            lines.append(f"  ⚠️  {compatibility['warning']}")
         else:
-            lines.append(f"└─ ✅ Excellent spectral match")
+            lines.append(f"  ✅ Excellent spectral match")
         lines.append("")
         
         # Multi-metric category - cleaner box
-        lines.append("┌" + "─" * 68 + "┐")
-        lines.append("│ " + "MULTI-METRIC CATEGORIZATION".center(66) + " │")
-        lines.append("└" + "─" * 68 + "┘")
+        lines.append("=" * 70)
+        lines.append("MULTI-METRIC CATEGORIZATION")
+        lines.append("=" * 70)
         lines.append("")
         
         category_emoji = {
@@ -849,9 +849,9 @@ class FTIRDeviationAnalyzer:
         lines.append("")
         
         # Critical regions detail - cleaner format
-        lines.append("┌" + "─" * 68 + "┐")
-        lines.append("│ " + "CRITICAL REGIONS ANALYSIS".center(66) + " │")
-        lines.append("└" + "─" * 68 + "┘")
+        lines.append("=" * 70)
+        lines.append("CRITICAL REGIONS ANALYSIS")
+        lines.append("=" * 70)
         lines.append("")
         
         for i, rd in enumerate(region_deviations, 1):
@@ -868,18 +868,18 @@ class FTIRDeviationAnalyzer:
             lines.append(f"Region {i}: {region_title} ({rd.region_range[0]:.0f}-{rd.region_range[1]:.0f} cm⁻¹)")
             
             # Vertical deviation
-            lines.append(f"  ├─ ΔY: {rd.max_delta_y:+.3f} A at {rd.max_delta_y_wavenumber:.0f} cm⁻¹")
+            lines.append(f"  ΔY: {rd.max_delta_y:+.3f} A at {rd.max_delta_y_wavenumber:.0f} cm⁻¹")
             if rd.max_delta_y_pct > 0:
-                lines.append(f"  │   └─ {rd.max_delta_y_pct:+.1f}% relative to baseline")
+                lines.append(f"      {rd.max_delta_y_pct:+.1f}% relative to baseline")
             
             # Horizontal shift
             if abs(rd.max_delta_x) < 0.1:
-                lines.append(f"  ├─ ΔX: No significant shift")
+                lines.append(f"  ΔX: No significant shift")
             else:
-                lines.append(f"  ├─ ΔX: {rd.max_delta_x:+.1f} cm⁻¹")
+                lines.append(f"  ΔX: {rd.max_delta_x:+.1f} cm⁻¹")
             
             # Status with interpretation
-            lines.append(f"  └─ {emoji} {rd.alert_level.upper()}: {rd.reasoning}")
+            lines.append(f"  {emoji} {rd.alert_level.upper()}: {rd.reasoning}")
             lines.append("")
         
         # Outliers summary - more compact
@@ -887,18 +887,21 @@ class FTIRDeviationAnalyzer:
             critical_outliers = [o for o in outliers if o.severity == 'critical']
             major_outliers = [o for o in outliers if o.severity == 'major']
             
-            lines.append("┌─ OUTLIER DETECTION (Full Spectrum)")
-            lines.append(f"│  Total: {len(outliers)} points (Critical: {len(critical_outliers)}, Major: {len(major_outliers)})")
+            lines.append("=" * 70)
+            lines.append("OUTLIER DETECTION (Full Spectrum)")
+            lines.append("=" * 70)
+            lines.append(f"Total: {len(outliers)} points (Critical: {len(critical_outliers)}, Major: {len(major_outliers)})")
             
             if critical_outliers:
-                lines.append("│")
-                lines.append("│  Top 3 Critical Outliers:")
+                lines.append("")
+                lines.append("Top 3 Critical Outliers:")
                 for o in sorted(critical_outliers, key=lambda x: x.delta_y, reverse=True)[:3]:
-                    lines.append(f"│    • {o.wavenumber:.0f} cm⁻¹: ΔY = {o.delta_y:.3f} A ({o.sigma_level:.1f}σ)")
-            lines.append("└─")
+                    lines.append(f"  • {o.wavenumber:.0f} cm⁻¹: ΔY = {o.delta_y:.3f} A ({o.sigma_level:.1f}σ)")
         else:
-            lines.append("┌─ OUTLIER DETECTION")
-            lines.append("└─ ✅ No significant outliers detected")
+            lines.append("=" * 70)
+            lines.append("OUTLIER DETECTION")
+            lines.append("=" * 70)
+            lines.append("✅ No significant outliers detected")
         
         lines.append("")
         

@@ -611,22 +611,10 @@ QPushButton:disabled {
               </size>
              </property>
              <property name="styleSheet">
-              <string notr="true">QPushButton {
-    background: rgb(50, 68, 88);
-    border: 2px solid rgb(70, 100, 130);
-}
-
-QPushButton:hover {
-    background: rgb(70, 100, 130);
-    border: 2px solid rgb(90, 130, 160);
-}
-
-QPushButton:pressed {
-    background: rgb(40, 60, 80);
-}</string>
+              <string notr="true"/>
              </property>
              <property name="text">
-              <string>📄 Generate PDF Report</string>
+              <string>Generate PDF Report</string>
              </property>
             </widget>
            </item>

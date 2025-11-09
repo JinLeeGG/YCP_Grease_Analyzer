@@ -28,7 +28,7 @@ from PyQt6 import uic
 from PyQt6.QtWidgets import (QMainWindow, QApplication, QFileDialog, QMessageBox, 
                               QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, 
                               QPushButton, QCheckBox, QScrollArea, QGridLayout, QLabel,
-                              QSizePolicy)
+                              QSizePolicy, QMenu)
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QPixmap, QIcon
 import sys
@@ -47,7 +47,6 @@ from matplotlib.figure import Figure
 from modules.csv_processor import CSVProcessor
 from modules.graph_generator import GraphGenerator
 from modules.llm_analyzer import LLMAnalyzer  # Now includes FTIRAnalyzer internally
-from modules.pdf_exporter import PDFExporter
 from utils.config import LLM_CONFIG, EXPORT_SETTINGS, SUPPORTED_FORMATS
 
 
@@ -228,7 +227,6 @@ class GreaseAnalyzerApp(QMainWindow):
             model=LLM_CONFIG.get('model', 'llava:7b-v1.6'),
             use_llm=LLM_CONFIG.get('use_llm_enhancement', True)
         )  # Local LLM (Ollama) for AI analysis - reads config
-        self.pdf_exporter = PDFExporter()            # PDF report generator
         
         # Background worker threads
         self.analysis_worker: Optional[AnalysisWorker] = None
@@ -297,6 +295,10 @@ class GreaseAnalyzerApp(QMainWindow):
         # Make export info label clickable (opens directory settings)
         self.exportInfo.setCursor(Qt.CursorShape.PointingHandCursor)
         self.exportInfo.mousePressEvent = lambda event: self.change_save_directory()
+        
+        # Add context menu to Graph Analysis Report for PDF export
+        self.aiSummaryText.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.aiSummaryText.customContextMenuRequested.connect(self.show_analysis_report_context_menu)
         
         # Set default splitter sizes
         self.set_default_splitter_sizes()
@@ -1103,7 +1105,7 @@ class GreaseAnalyzerApp(QMainWindow):
         # Export button handlers
         self.btn_export_current.clicked.connect(self.save_current_graph)
         self.btn_export_all.clicked.connect(self.save_all_graphs)
-        self.btn_generate_pdf_report.clicked.connect(self.generate_pdf_report)
+        self.btn_generate_pdf_report.clicked.connect(self.export_graph_analysis_report_pdf)
         
         # Dropdown selection handler
         self.comboBox.currentIndexChanged.connect(self.on_sample_changed)
@@ -1456,16 +1458,16 @@ class GreaseAnalyzerApp(QMainWindow):
         summary_text = "=" * 70 + "\n"
         summary_text += "GRAPH ANALYSIS RESULTS\n"
         summary_text += "=" * 70 + "\n\n"
-        summary_text += f"SAMPLE: {sample_name}\n"
-        summary_text += "-" * 70 + "\n\n"
+        summary_text += f"BASELINE: {self.baseline_name}\n"
+        summary_text += f"SAMPLE: {sample_name}\n\n"
         
         # Display analysis for the sample
         if sample_name in results['individual_results']:
             analysis = results['individual_results'][sample_name]
             summary_text += analysis + "\n\n"
-            summary_text += "-" * 70 + "\n"
+            summary_text += "=" * 70 + "\n"
             summary_text += "📈 SAMPLE STATISTICS\n"
-            summary_text += "-" * 70 + "\n"
+            summary_text += "=" * 70 + "\n"
             summary_text += f"Quality Score: {current_sample['comparison']['quality_score']:.1f}/100\n"
             summary_text += f"Mean Deviation: {current_sample['comparison']['mean_deviation_percent']:+.1f}%\n"
             summary_text += f"Correlation: {current_sample['comparison']['correlation']:.3f}\n"
@@ -1858,6 +1860,240 @@ class GreaseAnalyzerApp(QMainWindow):
                 self,
                 "Error",
                 f"Failed to generate PDF report:\n\n{str(e)}"
+            )
+            import traceback
+            traceback.print_exc()
+    
+    def show_analysis_report_context_menu(self, position):
+        """Show context menu for Graph Analysis Report"""
+        # Check if there's content to export
+        report_text = self.aiSummaryText.toPlainText()
+        if not report_text or report_text.strip() == "" or "No analysis" in report_text:
+            return
+        
+        # Create context menu
+        menu = QMenu(self)
+        
+        # Add export action
+        export_action = menu.addAction("Export to PDF...")
+        export_action.triggered.connect(self.export_graph_analysis_report_pdf)
+        
+        # Show menu at cursor position
+        menu.exec(self.aiSummaryText.mapToGlobal(position))
+    
+    def export_graph_analysis_report_pdf(self):
+        """Export Graph Analysis Report text to PDF"""
+        # Check if reportlab is available
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib import colors
+            from reportlab.lib.enums import TA_CENTER
+        except ImportError:
+            QMessageBox.critical(
+                self,
+                "Missing Dependency",
+                "PDF export requires the 'reportlab' library.\n\n"
+                "Please install it using:\n"
+                "pip install reportlab"
+            )
+            return
+        
+        # Get the report text
+        report_text = self.aiSummaryText.toPlainText()
+        
+        if not report_text or report_text.strip() == "" or "No analysis" in report_text:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "No graph analysis report available!\n\n"
+                "Please run 'Generate Analysis' first."
+            )
+            return
+        
+        try:
+            # Get current sample info for metadata
+            sample_name = None
+            baseline_name = self.baseline_name if hasattr(self, 'baseline_name') and self.baseline_name else None
+            
+            if self.sample_data_list and self.current_sample_index < len(self.sample_data_list):
+                sample_name = self.sample_data_list[self.current_sample_index]['name']
+            
+            # Ask user for save location
+            default_filename = f"Graph_Analysis_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            
+            save_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Graph Analysis Report as PDF",
+                default_filename,
+                "PDF Files (*.pdf)"
+            )
+            
+            if not save_path:
+                return  # User cancelled
+            
+            # Show progress
+            self.status_inf.setText("STATUS: Exporting graph analysis report to PDF...")
+            QApplication.processEvents()  # Update UI
+            
+            # Create PDF directly
+            try:
+                # Create PDF document
+                doc = SimpleDocTemplate(
+                    save_path,
+                    pagesize=letter,
+                    rightMargin=0.75*inch,
+                    leftMargin=0.75*inch,
+                    topMargin=0.75*inch,
+                    bottomMargin=0.75*inch
+                )
+                
+                # Build content
+                story = []
+                styles = getSampleStyleSheet()
+                
+                # Add custom title style
+                title_style = ParagraphStyle(
+                    name='CustomTitle',
+                    parent=styles['Title'],
+                    fontSize=24,
+                    textColor=colors.HexColor('#1a5490'),
+                    spaceAfter=20,
+                    alignment=TA_CENTER,
+                    fontName='Helvetica-Bold'
+                )
+                
+                # Add title
+                story.append(Paragraph("Graph Analysis Report", title_style))
+                story.append(Spacer(1, 0.3*inch))
+                
+                # Add metadata if provided
+                if baseline_name or sample_name:
+                    current_date = datetime.now().strftime('%B %d, %Y at %I:%M %p')
+                    metadata = []
+                    
+                    if baseline_name:
+                        metadata.append(['Baseline:', baseline_name])
+                    if sample_name:
+                        metadata.append(['Sample:', sample_name])
+                    metadata.append(['Report Generated:', current_date])
+                    
+                    table = Table(metadata, colWidths=[1.5*inch, 5*inch])
+                    table.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 11),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                        ('TOPPADDING', (0, 0), (-1, -1), 8),
+                        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2c5aa0')),
+                    ]))
+                    
+                    story.append(table)
+                    story.append(Spacer(1, 0.3*inch))
+                
+                # Parse and format the report text - extract only clean text
+                lines = report_text.split('\n')
+                
+                for line in lines:
+                    # Skip empty lines
+                    if not line.strip():
+                        continue
+                    
+                    # Skip separator lines (====)
+                    if line.strip().startswith('='):
+                        continue
+                    
+                    # Remove all emojis from the line
+                    line_clean = line
+                    emojis_to_remove = ['✅', '⚠️', '❌', '🚨', '⚡', '📈', '🔍', '⏱️', '📊', '🎯', '💡', '⚙️', '🔧', '✔️', '❗', '⭐']
+                    for emoji in emojis_to_remove:
+                        line_clean = line_clean.replace(emoji, '')
+                    
+                    # Replace superscript characters with regular notation
+                    line_clean = line_clean.replace('⁻¹', '-1')
+                    line_clean = line_clean.replace('⁰', '0').replace('¹', '1').replace('²', '2').replace('³', '3')
+                    line_clean = line_clean.replace('⁴', '4').replace('⁵', '5').replace('⁶', '6').replace('⁷', '7')
+                    line_clean = line_clean.replace('⁸', '8').replace('⁹', '9').replace('⁺', '+').replace('⁻', '-')
+                    
+                    # Clean line for HTML
+                    line_clean = line_clean.strip()
+                    if not line_clean:  # Skip if line becomes empty after emoji removal
+                        continue
+                    
+                    line_clean = line_clean.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    
+                    # Detect headers (all caps or ends with colon)
+                    if (line_clean.isupper() and len(line_clean) < 50) or line_clean.endswith(':'):
+                        story.append(Spacer(1, 0.1*inch))
+                        story.append(Paragraph(f"<b>{line_clean}</b>", styles['Heading2']))
+                        story.append(Spacer(1, 0.05*inch))
+                    else:
+                        # Regular text - handle indentation
+                        leading_spaces = len(line) - len(line.lstrip())
+                        indent = leading_spaces * 5
+                        
+                        if indent > 0:
+                            custom_style = ParagraphStyle(
+                                'CustomIndent',
+                                parent=styles['Normal'],
+                                leftIndent=indent
+                            )
+                            story.append(Paragraph(line_clean, custom_style))
+                        else:
+                            story.append(Paragraph(line_clean, styles['Normal']))
+                
+                # Build PDF
+                doc.build(story)
+                success = True
+                
+            except Exception as e:
+                success = False
+                print(f"❌ PDF generation error: {str(e)}")
+                import traceback
+                traceback.print_exc()
+            
+            if success:
+                self.status_inf.setText("STATUS: Graph analysis report PDF exported successfully!")
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    f"Graph analysis report exported successfully!\n\n"
+                    f"Location: {save_path}"
+                )
+                
+                # Ask if user wants to open the PDF
+                reply = QMessageBox.question(
+                    self,
+                    "Open PDF?",
+                    "Would you like to open the PDF report now?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                
+                if reply == QMessageBox.StandardButton.Yes:
+                    # Open PDF with default system viewer
+                    if sys.platform == 'win32':
+                        os.startfile(save_path)
+                    elif sys.platform == 'darwin':  # macOS
+                        os.system(f'open "{save_path}"')
+                    else:  # Linux
+                        os.system(f'xdg-open "{save_path}"')
+            else:
+                self.status_inf.setText("STATUS: PDF export failed!")
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    "Failed to export graph analysis report to PDF."
+                )
+                
+        except Exception as e:
+            self.status_inf.setText("STATUS: PDF export failed!")
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to export graph analysis report:\n\n{str(e)}"
             )
             import traceback
             traceback.print_exc()
