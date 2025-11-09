@@ -659,11 +659,24 @@ class GreaseAnalyzerApp(QMainWindow):
                 selected_samples.append(self.sample_data_list[i])
         
         if not selected_samples:
-            # No samples selected - show message
+            # No samples selected - show message in center
+            message_widget = QWidget()
+            message_layout = QVBoxLayout(message_widget)
+            message_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            
             label = QLabel("No samples selected.\nCheck at least one sample to view.")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setStyleSheet("color: rgb(220, 225, 230); font: 14pt 'Roboto';")
-            self.grid_layout.addWidget(label, 0, 0)
+            label.setStyleSheet("""
+                QLabel {
+                    color: rgb(220, 225, 230); 
+                    font: 16pt 'Roboto';
+                    padding: 40px;
+                }
+            """)
+            message_layout.addWidget(label)
+            
+            self.grid_layout.addWidget(message_widget, 0, 0, 1, 1)
+            self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
             return
         
         # Determine grid size
