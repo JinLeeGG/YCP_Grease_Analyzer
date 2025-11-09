@@ -24,7 +24,9 @@ ARCHITECTURE:
 """
 
 from PyQt6 import uic
-from PyQt6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox
+from PyQt6.QtWidgets import (QMainWindow, QApplication, QFileDialog, QMessageBox, 
+                              QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, 
+                              QPushButton, QCheckBox, QScrollArea, QGridLayout, QLabel)
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QPixmap, QIcon
 import sys
@@ -36,6 +38,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 
 # Import project modules
 from modules.csv_processor import CSVProcessor
@@ -206,6 +209,12 @@ class GreaseAnalyzerApp(QMainWindow):
         self.current_figure = None                          # Current matplotlib figure for canvas
         self.saved_graph_paths: List[str] = []              # List of saved graph paths for analysis
         
+        # Multi-view comparison mode
+        self.comparison_mode: str = "single"                # "single" or "grid"
+        self.tab_widget: Optional[QTabWidget] = None        # Tab widget for sample navigation
+        self.grid_widget: Optional[QWidget] = None          # Grid widget for multi-comparison
+        self.sample_canvases: Dict[str, FigureCanvas] = {}  # Cache of canvases per sample
+        
         # Export settings
         self.save_directory: str = EXPORT_SETTINGS['save_directory']  # Directory for saving graphs
         self.image_format: str = EXPORT_SETTINGS['image_format']      # Image format (png/jpg)
@@ -240,8 +249,8 @@ class GreaseAnalyzerApp(QMainWindow):
         if logo_path.exists():
             self.setWindowIcon(QIcon(str(logo_path)))
         
-        # Replace the QLabel "display" with matplotlib FigureCanvas for interactive graphs
-        self.setup_matplotlib_canvas()
+        # Replace the QLabel "display" with matplotlib visualization system (tabs + grid)
+        self.setup_visualization_system()
         
         # Set initial status messages
         self.status_inf.setText("STATUS: Ready to analyze data")
@@ -269,6 +278,11 @@ class GreaseAnalyzerApp(QMainWindow):
         self.comboBox.clear()
         self.comboBox.addItem("No samples loaded")
         
+        # Initialize mode menu items
+        self.actionTabMode.setChecked(True)  # Tab mode is default
+        self.actionGridMode.setChecked(False)
+        self.actionGridMode.setEnabled(False)  # Disabled until samples are loaded
+        
         # Display AI model configuration information
         model_name = LLM_CONFIG['model'].replace('llava:', 'LLaVA ')
         self.aiModelInfo.setText(f"Model: {model_name}")
@@ -283,30 +297,317 @@ class GreaseAnalyzerApp(QMainWindow):
         # Set default splitter sizes
         self.set_default_splitter_sizes()
     
-    def setup_matplotlib_canvas(self):
+    def setup_visualization_system(self):
         """
-        Setup Interactive Matplotlib Canvas with Zoom/Pan Controls
+        Setup Advanced Visualization System with Tabs and Grid Comparison
         
-        Replaces the QLabel "display" widget with a matplotlib FigureCanvas
-        that provides built-in interactive features:
-        - Zoom: Click and drag to create zoom rectangle
-        - Pan: Right-click and drag to pan around
-        - Navigation toolbar: Home, Back, Forward, Pan, Zoom, Save buttons
+        Creates a flexible visualization system that supports:
+        1. Tab Mode (default): One tab per sample for easy navigation
+        2. Grid Mode: View multiple samples simultaneously in a grid layout
+        
+        Users can toggle between modes using the comparison mode button.
         """
-        # Remove the old QLabel widget
+        # Remove the old display widget
         old_display = self.display
         display_layout = old_display.parent().layout()
         
-        # Create matplotlib figure and canvas
-        from matplotlib.figure import Figure
-        self.figure = Figure(figsize=(8, 6), facecolor='#1a202c')  # Dark background
-        self.canvas = FigureCanvas(self.figure)
+        # Create container widget for visualization modes
+        self.viz_container = QWidget()
+        self.viz_layout = QVBoxLayout(self.viz_container)
+        self.viz_layout.setContentsMargins(0, 0, 0, 0)
+        self.viz_layout.setSpacing(5)
         
-        # Create navigation toolbar for zoom/pan controls
-        self.toolbar = NavigationToolbar(self.canvas, self)
+        # Sample selection checkboxes (shown in grid mode only)
+        self.sample_checkboxes_widget = QWidget()
+        self.sample_checkboxes_layout = QHBoxLayout(self.sample_checkboxes_widget)
+        self.sample_checkboxes_layout.setContentsMargins(10, 5, 10, 5)
+        self.sample_checkboxes: List[QCheckBox] = []
         
-        # Style the toolbar to match dark theme
-        self.toolbar.setStyleSheet("""
+        # Add label for checkboxes
+        checkbox_label = QLabel("Select samples to compare:")
+        checkbox_label.setStyleSheet("color: rgb(220, 225, 230); font: 11pt 'Roboto';")
+        self.sample_checkboxes_layout.addWidget(checkbox_label)
+        
+        self.sample_checkboxes_widget.hide()  # Hidden initially
+        self.sample_checkboxes_widget.setStyleSheet("""
+            QWidget {
+                background: rgb(38, 52, 66);
+                border-radius: 5px;
+                padding: 5px;
+            }
+        """)
+        self.sample_checkboxes_widget.setMaximumHeight(60)  # Prevent vertical expansion
+        self.viz_layout.addWidget(self.sample_checkboxes_widget)
+        
+        # Create tab widget (default mode)
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setStyleSheet("""
+            QTabWidget::pane {
+                border: 2px solid rgb(50, 68, 85);
+                border-radius: 8px;
+                background: rgb(32, 44, 56);
+            }
+            QTabBar::tab {
+                background: rgb(38, 52, 66);
+                color: rgb(220, 225, 230);
+                padding: 8px 15px;
+                margin-right: 2px;
+                border-top-left-radius: 5px;
+                border-top-right-radius: 5px;
+                font: 11pt "Roboto";
+            }
+            QTabBar::tab:selected {
+                background: rgb(85, 105, 75);
+                font-weight: bold;
+            }
+            QTabBar::tab:hover {
+                background: rgb(70, 90, 110);
+            }
+        """)
+        # Sync tab changes with combobox
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
+        self.viz_layout.addWidget(self.tab_widget)
+        
+        # Create grid widget (comparison mode) - hidden initially
+        self.grid_scroll = QScrollArea()
+        self.grid_scroll.setWidgetResizable(True)
+        self.grid_scroll.setStyleSheet("""
+            QScrollArea {
+                border: 2px solid rgb(50, 68, 85);
+                border-radius: 8px;
+                background: rgb(32, 44, 56);
+            }
+        """)
+        self.grid_widget = QWidget()
+        self.grid_layout = QGridLayout(self.grid_widget)
+        self.grid_layout.setSpacing(10)
+        self.grid_layout.setContentsMargins(10, 10, 10, 10)
+        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.grid_scroll.setWidget(self.grid_widget)
+        self.viz_layout.addWidget(self.grid_scroll)
+        self.grid_scroll.hide()  # Hidden by default
+        
+        # Replace old display with new system
+        display_layout.replaceWidget(old_display, self.viz_container)
+        old_display.deleteLater()
+        
+        # Store reference for backward compatibility
+        self.display = self.viz_container
+    
+    def setup_matplotlib_canvas(self):
+        """
+        Legacy method - now replaced by setup_visualization_system()
+        Kept for compatibility but redirects to new system.
+        """
+        pass
+    
+    def switch_to_tab_mode(self):
+        """Switch to Tab Mode - view one sample at a time"""
+        if self.comparison_mode == "single":
+            return  # Already in tab mode
+        
+        self.comparison_mode = "single"
+        self.grid_scroll.hide()
+        self.sample_checkboxes_widget.hide()
+        self.tab_widget.show()
+        
+        # Update menu checkmarks
+        self.actionTabMode.setChecked(True)
+        self.actionGridMode.setChecked(False)
+        
+        self.status_inf.setText("STATUS: Switched to Tab View")
+    
+    def switch_to_grid_mode(self):
+        """Switch to Grid Comparison Mode - view multiple samples side-by-side"""
+        if not self.sample_data_list:
+            QMessageBox.information(
+                self, 
+                "No Samples", 
+                "Please upload samples first to use Grid Comparison Mode."
+            )
+            # Keep tab mode checked
+            self.actionTabMode.setChecked(True)
+            self.actionGridMode.setChecked(False)
+            return
+        
+        if self.comparison_mode == "grid":
+            return  # Already in grid mode
+        
+        self.comparison_mode = "grid"
+        self.tab_widget.hide()
+        self.sample_checkboxes_widget.show()
+        self.grid_scroll.show()
+        self.update_grid_view()
+        
+        # Update menu checkmarks
+        self.actionTabMode.setChecked(False)
+        self.actionGridMode.setChecked(True)
+        
+        self.status_inf.setText("STATUS: Switched to Grid Comparison View")
+    
+    def toggle_comparison_mode(self):
+        """
+        Toggle between Single Tab Mode and Grid Comparison Mode
+        
+        Legacy method - now redirects to menu-based switching
+        """
+        if self.comparison_mode == "single":
+            self.switch_to_grid_mode()
+        else:
+            self.switch_to_tab_mode()
+    
+    def update_sample_checkboxes(self):
+        """
+        Update the sample selection checkboxes for grid comparison mode
+        
+        Creates checkboxes for each loaded sample, allowing users to select
+        which samples to display in the grid comparison view.
+        """
+        # Clear existing checkboxes
+        for checkbox in self.sample_checkboxes:
+            checkbox.deleteLater()
+        self.sample_checkboxes.clear()
+        
+        # Create checkbox for each sample
+        for sample in self.sample_data_list:
+            checkbox = QCheckBox(sample['name'])
+            checkbox.setChecked(True)  # All checked by default
+            checkbox.setStyleSheet("""
+                QCheckBox {
+                    color: rgb(220, 225, 230);
+                    font: 10pt "Roboto";
+                    spacing: 5px;
+                }
+                QCheckBox::indicator {
+                    width: 18px;
+                    height: 18px;
+                }
+            """)
+            checkbox.stateChanged.connect(self.update_grid_view)
+            self.sample_checkboxes_layout.addWidget(checkbox)
+            self.sample_checkboxes.append(checkbox)
+        
+        self.sample_checkboxes_layout.addStretch()
+    
+    def update_grid_view(self):
+        """
+        Update Grid Comparison View with Selected Samples
+        
+        Displays selected samples in an optimal grid layout:
+        - 1 sample: 1x1
+        - 2 samples: 1x2 or 2x1
+        - 3-4 samples: 2x2
+        - 5-6 samples: 2x3
+        - 7-9 samples: 3x3
+        """
+        # Clear existing grid
+        while self.grid_layout.count():
+            item = self.grid_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Get selected samples
+        selected_samples = []
+        for i, checkbox in enumerate(self.sample_checkboxes):
+            if checkbox.isChecked() and i < len(self.sample_data_list):
+                selected_samples.append(self.sample_data_list[i])
+        
+        if not selected_samples:
+            # No samples selected - show message
+            label = QLabel("No samples selected.\nCheck at least one sample to view.")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setStyleSheet("color: rgb(220, 225, 230); font: 14pt 'Roboto';")
+            self.grid_layout.addWidget(label, 0, 0)
+            return
+        
+        # Determine grid size
+        num_samples = len(selected_samples)
+        if num_samples == 1:
+            rows, cols = 1, 1
+        elif num_samples == 2:
+            rows, cols = 1, 2
+        elif num_samples <= 4:
+            rows, cols = 2, 2
+        elif num_samples <= 6:
+            rows, cols = 2, 3
+        else:
+            rows, cols = 3, 3
+        
+        # Create grid of graphs
+        for idx, sample in enumerate(selected_samples[:rows * cols]):
+            row = idx // cols
+            col = idx % cols
+            
+            # Create container for this graph
+            container = QWidget()
+            container_layout = QVBoxLayout(container)
+            container_layout.setContentsMargins(5, 5, 5, 5)
+            container_layout.setSpacing(5)
+            
+            # Sample name label
+            name_label = QLabel(sample['name'])
+            name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            name_label.setStyleSheet("""
+                QLabel {
+                    color: rgb(220, 225, 230);
+                    font: 12pt "Roboto";
+                    font-weight: bold;
+                    background: rgb(45, 60, 75);
+                    padding: 5px;
+                    border-radius: 5px;
+                }
+            """)
+            container_layout.addWidget(name_label)
+            
+            # Always create a fresh canvas for grid view (can't reuse from tabs)
+            fig = self.graph_generator.create_overlay_graph(
+                self.baseline_data,
+                sample['data'],
+                self.baseline_name,
+                sample['name']
+            )
+            
+            # Create new canvas for this grid cell
+            canvas = FigureCanvas(fig)
+            canvas.setMinimumSize(300, 250)
+            
+            container_layout.addWidget(canvas)
+            
+            # Add to grid
+            self.grid_layout.addWidget(container, row, col)
+    
+    def create_sample_tab(self, sample_name: str, sample_data: pd.DataFrame):
+        """
+        Create a Tab for a Single Sample
+        
+        Creates a new tab containing:
+        - Matplotlib canvas with interactive graph
+        - Navigation toolbar for zoom/pan
+        
+        Args:
+            sample_name: Name of the sample
+            sample_data: DataFrame containing sample data
+        """
+        # Create tab widget
+        tab = QWidget()
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(5, 5, 5, 5)
+        tab_layout.setSpacing(5)
+        
+        # Generate graph
+        fig = self.graph_generator.create_overlay_graph(
+            self.baseline_data,
+            sample_data,
+            self.baseline_name,
+            sample_name
+        )
+        
+        # Create canvas
+        canvas = FigureCanvas(fig)
+        
+        # Create navigation toolbar
+        toolbar = NavigationToolbar(canvas, tab)
+        toolbar.setStyleSheet("""
             QToolBar {
                 background: rgb(38, 52, 66);
                 border: 2px solid rgb(50, 68, 85);
@@ -323,23 +624,57 @@ class GreaseAnalyzerApp(QMainWindow):
             }
             QToolButton:hover {
                 background: rgb(85, 105, 75);
-                border: 1px solid rgb(100, 130, 80);
-            }
-            QToolButton:pressed {
-                background: rgb(70, 90, 60);
             }
         """)
         
-        # Remove old widget and add canvas with toolbar
-        display_layout.removeWidget(old_display)
-        old_display.deleteLater()
+        tab_layout.addWidget(toolbar)
+        tab_layout.addWidget(canvas)
         
-        # Add toolbar and canvas to the layout
-        display_layout.addWidget(self.toolbar)
-        display_layout.addWidget(self.canvas)
+        # Add tab to tab widget
+        self.tab_widget.addTab(tab, sample_name)
         
-        # Store reference for later use
-        self.display = self.canvas
+        # Cache the canvas and figure
+        self.sample_canvases[sample_name] = canvas
+        self.current_figure = fig
+    
+    def refresh_all_tabs(self):
+        """
+        Refresh All Sample Tabs
+        
+        Clears existing tabs and recreates them with current data.
+        Used when baseline changes or samples are reloaded.
+        """
+        # Clear tabs
+        self.tab_widget.clear()
+        self.sample_canvases.clear()
+        
+        # Recreate tabs for all samples
+        for sample in self.sample_data_list:
+            self.create_sample_tab(sample['name'], sample['data'])
+        
+        # Enable/disable mode menu items based on sample count
+        has_multiple_samples = len(self.sample_data_list) > 1
+        self.actionGridMode.setEnabled(has_multiple_samples)
+        
+        if not has_multiple_samples and self.comparison_mode == "grid":
+            # Switch back to tab mode if only one sample
+            self.switch_to_tab_mode()
+        
+        # Update checkboxes
+        self.update_sample_checkboxes()
+    
+    def on_tab_changed(self, index: int):
+        """Handle tab selection change - sync with combobox"""
+        if 0 <= index < len(self.sample_data_list):
+            self.current_sample_index = index
+            # Sync combobox with tab selection (without triggering its signal)
+            self.comboBox.blockSignals(True)
+            self.comboBox.setCurrentIndex(index)
+            self.comboBox.blockSignals(False)
+            # Update current figure for export
+            if self.sample_data_list[index]['name'] in self.sample_canvases:
+                canvas = self.sample_canvases[self.sample_data_list[index]['name']]
+                self.current_figure = canvas.figure
         
     def set_default_splitter_sizes(self):
         """
@@ -582,6 +917,7 @@ class GreaseAnalyzerApp(QMainWindow):
         self.btn_send_message.clicked.connect(self.send_chat_message)
         self.chatInput.returnPressed.connect(self.send_chat_message)
 
+        # Menu actions
         self.actionUpload_BaseLine.triggered.connect(self.upload_baseline)
         self.actionUpload_Samples.triggered.connect(self.upload_samples)
         self.actionSave_Current_Graph.triggered.connect(self.save_current_graph)
@@ -590,6 +926,10 @@ class GreaseAnalyzerApp(QMainWindow):
         self.actionExit.triggered.connect(self.close)
         self.actionDocumentation.triggered.connect(self.show_documentation)
         self.actionAbout.triggered.connect(self.show_about)
+        
+        # Mode switching menu actions
+        self.actionTabMode.triggered.connect(self.switch_to_tab_mode)
+        self.actionGridMode.triggered.connect(self.switch_to_grid_mode)
 
     def upload_baseline(self):
         """Upload and load baseline reference data"""
@@ -619,10 +959,10 @@ class GreaseAnalyzerApp(QMainWindow):
 
             self.btn_current_filter.setEnabled(True)
             
-            # If samples were already loaded, refresh the display with new baseline
+            # If samples were already loaded, refresh tabs with new baseline
             if self.sample_data_list:
-                print(f"🔄 Refreshing graphs with new baseline: {self.baseline_name}")
-                self.display_current_sample()
+                print(f"🔄 Refreshing tabs with new baseline: {self.baseline_name}")
+                self.refresh_all_tabs()
             
             # Show success message with data info
             QMessageBox.information(
@@ -683,19 +1023,19 @@ class GreaseAnalyzerApp(QMainWindow):
 
             self.update_sample_combobox()
             
-            # Display first sample automatically
+            # Display samples in tabs
             if self.sample_data_list:
                 self.current_sample_index = 0
                 # Reset analysis and chat for fresh start
                 self.reset_analysis_and_chat()
-                # Force immediate graph display
+                # Create tabs for all samples
+                self.refresh_all_tabs()
+                # Enable buttons
                 QApplication.processEvents()  # Process any pending events first
-                self.display_current_sample()
-                QApplication.processEvents()  # Ensure graph is rendered
                 self.btn_invert.setEnabled(True)
                 self.btn_export_current.setEnabled(True)  # Enable export buttons
                 self.btn_export_all.setEnabled(True)
-                print(f"✅ Auto-displayed first sample: {self.sample_data_list[0]['name']}")
+                print(f"✅ Created tabs for {len(self.sample_data_list)} samples")
             
             QMessageBox.information(
                 self, "Success",
@@ -714,10 +1054,13 @@ class GreaseAnalyzerApp(QMainWindow):
             self.comboBox.addItem(sample['name'])
 
     def on_sample_changed(self, index: int):
-        """Handle sample selection change"""
+        """Handle sample selection change - sync with tab selection"""
         if 0 <= index < len(self.sample_data_list):
             self.current_sample_index = index
-            self.display_current_sample()
+            # Sync tab selection with combobox
+            if self.tab_widget.count() > index:
+                self.tab_widget.setCurrentIndex(index)
+            # In single mode, no need to refresh display (tab shows it)
             # Reset AI analysis and chat when changing samples
             self.reset_analysis_and_chat()
 
