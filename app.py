@@ -262,8 +262,8 @@ class GreaseAnalyzerApp(QMainWindow):
             "No analysis yet.\n"
             "1. Upload baseline data\n"
             "2. Upload sample data\n"
-            "3. Select a sample from dropdown\n"
-            "4. Click 'Generate Analysis' to analyze the current sample"
+            "3. Click 'Execute Analysis' to analyze all samples\n"
+            "4. Switch between samples to view their results"
         )
         
 
@@ -831,7 +831,7 @@ class GreaseAnalyzerApp(QMainWindow):
         self.update_sample_checkboxes()
     
     def on_tab_changed(self, index: int):
-        """Handle tab selection change - sync with combobox"""
+        """Handle tab selection change - sync with combobox and update analysis display"""
         if 0 <= index < len(self.sample_data_list):
             self.current_sample_index = index
             # Sync combobox with tab selection (without triggering its signal)
@@ -842,6 +842,17 @@ class GreaseAnalyzerApp(QMainWindow):
             if self.sample_data_list[index]['name'] in self.sample_canvases:
                 canvas = self.sample_canvases[self.sample_data_list[index]['name']]
                 self.current_figure = canvas.figure
+            
+            # Update the analysis display for the new sample
+            # Don't reset if we have analysis results - just show the current sample's result
+            if self.analysis_results and 'individual_results' in self.analysis_results:
+                self.display_current_sample_analysis()
+            else:
+                # No analysis available yet, show prompt
+                self.aiSummaryText.setText(
+                    "No analysis for this sample yet.\n\n"
+                    "Click 'Execute Analysis' to analyze all samples."
+                )
         
     def set_default_splitter_sizes(self):
         """
@@ -1247,21 +1258,30 @@ class GreaseAnalyzerApp(QMainWindow):
             self.comboBox.addItem(sample['name'])
 
     def on_sample_changed(self, index: int):
-        """Handle sample selection change - sync with tab selection"""
+        """Handle sample selection change - sync with tab selection and update analysis display"""
         if 0 <= index < len(self.sample_data_list):
             self.current_sample_index = index
             # Sync tab selection with combobox
             if self.tab_widget.count() > index:
                 self.tab_widget.setCurrentIndex(index)
-            # Clear the analysis report area when changing samples
-            self.reset_analysis_and_chat()
+            
+            # Update the analysis display for the new sample
+            # Don't reset if we have analysis results - just show the current sample's result
+            if self.analysis_results and 'individual_results' in self.analysis_results:
+                self.display_current_sample_analysis()
+            else:
+                # No analysis available yet, show prompt
+                self.aiSummaryText.setText(
+                    "No analysis for this sample yet.\n\n"
+                    "Click 'Execute Analysis' to analyze all samples."
+                )
 
     def reset_analysis_and_chat(self):
         """
-        Reset AI Analysis and Chat when Sample Changes
+        Reset AI Analysis and Chat when New Samples are Uploaded
         
-        Clears the analysis results and chat history for the new sample,
-        allowing users to start fresh with each sample.
+        Clears the analysis results and chat history when new samples are loaded,
+        allowing users to start fresh.
         """
         # Clear analysis results
         self.analysis_results = {}
@@ -1271,8 +1291,8 @@ class GreaseAnalyzerApp(QMainWindow):
         
         # Reset AI summary text
         self.aiSummaryText.setText(
-            "No analysis for this sample yet.\n\n"
-            "Click 'Generate Analysis' to analyze the current sample."
+            "No analysis yet.\n\n"
+            "Click 'Execute Analysis' to analyze all samples."
         )
         
         # Reset chat display (if it exists)
@@ -1285,7 +1305,7 @@ class GreaseAnalyzerApp(QMainWindow):
             )
             self.chatDisplay.setHtml(welcome_msg)
         
-        print(f"🔄 Analysis and chat reset for new sample")
+        print(f"🔄 Analysis and chat reset for new samples")
 
     def display_current_sample(self):
         """Display graph for currently selected sample"""
@@ -1318,13 +1338,57 @@ class GreaseAnalyzerApp(QMainWindow):
             self.update_graph_display(fig)
             print(f"✅ Graph displayed on canvas")
             self.status_inf.setText(f"STATUS: Displaying {sample['name']}")
-
+        
         except Exception as e:
             print(f"❌ Display error: {str(e)}")
             import traceback
             traceback.print_exc()
             self.status_inf.setText("STATUS: Error displaying graph")
             QMessageBox.critical(self, "Display Error", f"Failed to display graph:\n{str(e)}")
+    
+    def display_current_sample_analysis(self):
+        """
+        Display the analysis results for the currently selected sample.
+        
+        This is called after analysis is complete or when user switches samples.
+        """
+        if not self.sample_data_list:
+            return
+        
+        if not self.analysis_results or 'individual_results' not in self.analysis_results:
+            # No analysis results available yet
+            self.aiSummaryText.setText(
+                "No analysis for this sample yet.\n\n"
+                "Click 'Execute Analysis' to analyze all samples."
+            )
+            return
+        
+        # Get current sample info
+        current_sample = self.sample_data_list[self.current_sample_index]
+        sample_name = current_sample['name']
+        
+        # Build analysis display text for the current sample
+        summary_text = "=" * 70 + "\n"
+        summary_text += "GRAPH ANALYSIS RESULTS\n"
+        summary_text += "=" * 70 + "\n\n"
+        summary_text += f"BASELINE: {self.baseline_name}\n"
+        summary_text += f"SAMPLE: {sample_name}\n\n"
+        
+        # Display analysis for the sample
+        if sample_name in self.analysis_results['individual_results']:
+            analysis = self.analysis_results['individual_results'][sample_name]
+            summary_text += analysis + "\n\n"
+            summary_text += "=" * 70 + "\n"
+            summary_text += "📈 SAMPLE STATISTICS\n"
+            summary_text += "=" * 70 + "\n"
+            summary_text += f"Quality Score: {current_sample['comparison']['quality_score']:.1f}/100\n"
+            summary_text += f"Mean Deviation: {current_sample['comparison']['mean_deviation_percent']:+.1f}%\n"
+            summary_text += f"Correlation: {current_sample['comparison']['correlation']:.3f}\n"
+        else:
+            summary_text += "⚠️ No analysis results found for this sample.\n"
+
+        self.aiSummaryText.setText(summary_text)
+        print(f"✅ Displayed analysis for: {sample_name}")
     
     def update_graph_display(self, fig=None):
         """
@@ -1393,7 +1457,10 @@ class GreaseAnalyzerApp(QMainWindow):
     
     def generate_analysis(self):
         """
-        Generate AI Hybrid Analysis (Numerical + Visual) for Current Sample Only
+        Generate AI Hybrid Analysis (Numerical + Visual) for ALL Samples
+        
+        Analyzes all uploaded samples in one batch, storing results for each.
+        When user changes samples, the corresponding result is displayed.
         """
         if not self.sample_data_list:
             QMessageBox.warning(self, "Warning", "No samples to analyze!")
@@ -1403,26 +1470,26 @@ class GreaseAnalyzerApp(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please upload baseline data first!")
             return
         
-        # Get current sample only
-        current_sample = self.sample_data_list[self.current_sample_index]
-        
         try:
-            self.status_inf.setText("STATUS: Starting numerical analysis...")
+            self.status_inf.setText("STATUS: Starting numerical analysis for all samples...")
             
-            # Start worker thread for background analysis (single sample)
+            # Start worker thread for background analysis (ALL samples)
             # No image generation required - purely numerical analysis
             if hasattr(self, 'aiProgress'):
                 self.aiProgress.setValue(0)
-            self.aiSummaryText.setText("🔄 Analyzing current sample... Please wait.")
+            self.aiSummaryText.setText(
+                f"🔄 Analyzing all {len(self.sample_data_list)} samples... Please wait.\n"
+                "This may take a moment depending on the number of samples."
+            )
             self.btn_invert.setEnabled(False)  # Disable button during analysis
             
-            # Create and configure worker thread for single sample
+            # Create and configure worker thread for ALL samples
             self.analysis_worker = AnalysisWorker(
                 self.llm_analyzer,
                 self.baseline_data,
                 self.baseline_name,
-                [current_sample],  # Single sample data
-                [current_sample['name']]  # Single sample name
+                self.sample_data_list,  # ALL samples
+                [s['name'] for s in self.sample_data_list]  # ALL sample names
             )
             self.analysis_worker.progress.connect(self.on_analysis_progress)
             self.analysis_worker.status.connect(self.on_analysis_status)
@@ -1447,34 +1514,12 @@ class GreaseAnalyzerApp(QMainWindow):
         self.status_inf.setText(f"STATUS: {message}")
 
     def on_analysis_finished(self, results: Dict):
-        """Handle completed visual analysis results for current sample"""
+        """Handle completed visual analysis results for ALL samples"""
         self.analysis_results = results
 
-        # Get current sample info
-        current_sample = self.sample_data_list[self.current_sample_index]
-        sample_name = current_sample['name']
+        # Display the current sample's analysis
+        self.display_current_sample_analysis()
         
-        # Build analysis display text for single sample
-        summary_text = "=" * 70 + "\n"
-        summary_text += "GRAPH ANALYSIS RESULTS\n"
-        summary_text += "=" * 70 + "\n\n"
-        summary_text += f"BASELINE: {self.baseline_name}\n"
-        summary_text += f"SAMPLE: {sample_name}\n\n"
-        
-        # Display analysis for the sample
-        if sample_name in results['individual_results']:
-            analysis = results['individual_results'][sample_name]
-            summary_text += analysis + "\n\n"
-            summary_text += "=" * 70 + "\n"
-            summary_text += "📈 SAMPLE STATISTICS\n"
-            summary_text += "=" * 70 + "\n"
-            summary_text += f"Quality Score: {current_sample['comparison']['quality_score']:.1f}/100\n"
-            summary_text += f"Mean Deviation: {current_sample['comparison']['mean_deviation_percent']:+.1f}%\n"
-            summary_text += f"Correlation: {current_sample['comparison']['correlation']:.3f}\n"
-        else:
-            summary_text += "⚠️ No analysis results found for this sample.\n"
-
-        self.aiSummaryText.setText(summary_text)
         if hasattr(self, 'aiProgress'):
             self.aiProgress.setValue(100)
         self.btn_invert.setEnabled(True)
@@ -1486,15 +1531,22 @@ class GreaseAnalyzerApp(QMainWindow):
         self.enable_chat_interface()
         
         # Add welcome message to chat
+        num_samples = len(self.sample_data_list)
         welcome_chat_msg = (
-            f"Analysis complete for {sample_name}! "
-            "I now have full context about this sample. "
+            f"Analysis complete for all {num_samples} sample(s)! "
+            "I now have full context about your samples. "
             "Feel free to ask me questions about the results, specific peaks, "
-            "oxidation levels, or recommendations."
+            "oxidation levels, or recommendations. You can also switch between samples "
+            "to see their individual analyses."
         )
         self.append_chat_message("assistant", welcome_chat_msg)
 
-        QMessageBox.information(self, "Success", f"Analysis completed for {sample_name}!")
+        QMessageBox.information(
+            self, 
+            "Success", 
+            f"Analysis completed for all {num_samples} sample(s)!\n\n"
+            "You can now switch between samples to view their individual results."
+        )
 
     def on_analysis_error(self, error_msg: str):
         """Handle analysis error"""
