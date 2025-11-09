@@ -318,26 +318,93 @@ class GreaseAnalyzerApp(QMainWindow):
         self.viz_layout.setSpacing(5)
         
         # Sample selection checkboxes (shown in grid mode only)
-        self.sample_checkboxes_widget = QWidget()
-        self.sample_checkboxes_layout = QHBoxLayout(self.sample_checkboxes_widget)
-        self.sample_checkboxes_layout.setContentsMargins(10, 5, 10, 5)
-        self.sample_checkboxes: List[QCheckBox] = []
+        # Create main container with horizontal scrollable layout
+        self.sample_checkboxes_container = QWidget()
+        container_layout = QHBoxLayout(self.sample_checkboxes_container)
+        container_layout.setContentsMargins(5, 5, 5, 5)
+        container_layout.setSpacing(5)
         
         # Add label for checkboxes
-        checkbox_label = QLabel("Select samples to compare:")
-        checkbox_label.setStyleSheet("color: rgb(220, 225, 230); font: 11pt 'Roboto';")
-        self.sample_checkboxes_layout.addWidget(checkbox_label)
+        checkbox_label = QLabel("Select samples:")
+        checkbox_label.setStyleSheet("color: rgb(220, 225, 230); font: 11pt 'Roboto'; padding-right: 5px;")
+        container_layout.addWidget(checkbox_label)
         
-        self.sample_checkboxes_widget.hide()  # Hidden initially
-        self.sample_checkboxes_widget.setStyleSheet("""
+        # Left scroll button
+        self.scroll_left_btn = QPushButton("◀")
+        self.scroll_left_btn.setFixedSize(30, 40)
+        self.scroll_left_btn.setStyleSheet("""
+            QPushButton {
+                background: rgb(45, 60, 75);
+                color: rgb(220, 225, 230);
+                border: 1px solid rgb(50, 68, 85);
+                border-radius: 5px;
+                font: bold 12pt;
+            }
+            QPushButton:hover {
+                background: rgb(70, 90, 110);
+            }
+            QPushButton:pressed {
+                background: rgb(85, 105, 75);
+            }
+        """)
+        self.scroll_left_btn.clicked.connect(self.scroll_checkboxes_left)
+        container_layout.addWidget(self.scroll_left_btn)
+        
+        # Scrollable area for checkboxes
+        self.checkboxes_scroll = QScrollArea()
+        self.checkboxes_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.checkboxes_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.checkboxes_scroll.setWidgetResizable(True)
+        self.checkboxes_scroll.setStyleSheet("""
+            QScrollArea {
+                border: 1px solid rgb(50, 68, 85);
+                border-radius: 5px;
+                background: rgb(32, 44, 56);
+            }
+        """)
+        
+        # Widget to hold checkboxes in horizontal layout
+        self.sample_checkboxes_widget = QWidget()
+        self.sample_checkboxes_layout = QHBoxLayout(self.sample_checkboxes_widget)
+        self.sample_checkboxes_layout.setContentsMargins(5, 5, 5, 5)
+        self.sample_checkboxes_layout.setSpacing(8)
+        self.sample_checkboxes_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.sample_checkboxes: List[QCheckBox] = []
+        
+        self.checkboxes_scroll.setWidget(self.sample_checkboxes_widget)
+        container_layout.addWidget(self.checkboxes_scroll, 1)  # Stretch to fill space
+        
+        # Right scroll button
+        self.scroll_right_btn = QPushButton("▶")
+        self.scroll_right_btn.setFixedSize(30, 40)
+        self.scroll_right_btn.setStyleSheet("""
+            QPushButton {
+                background: rgb(45, 60, 75);
+                color: rgb(220, 225, 230);
+                border: 1px solid rgb(50, 68, 85);
+                border-radius: 5px;
+                font: bold 12pt;
+            }
+            QPushButton:hover {
+                background: rgb(70, 90, 110);
+            }
+            QPushButton:pressed {
+                background: rgb(85, 105, 75);
+            }
+        """)
+        self.scroll_right_btn.clicked.connect(self.scroll_checkboxes_right)
+        container_layout.addWidget(self.scroll_right_btn)
+        
+        self.sample_checkboxes_container.hide()  # Hidden initially
+        self.sample_checkboxes_container.setStyleSheet("""
             QWidget {
                 background: rgb(38, 52, 66);
                 border-radius: 5px;
                 padding: 5px;
             }
         """)
-        self.sample_checkboxes_widget.setMaximumHeight(60)  # Prevent vertical expansion
-        self.viz_layout.addWidget(self.sample_checkboxes_widget)
+        self.sample_checkboxes_container.setMaximumHeight(60)  # Prevent vertical expansion
+        self.viz_layout.addWidget(self.sample_checkboxes_container)
         
         # Create tab widget (default mode)
         self.tab_widget = QTabWidget()
@@ -408,7 +475,7 @@ class GreaseAnalyzerApp(QMainWindow):
         
         self.comparison_mode = "single"
         self.grid_scroll.hide()
-        self.sample_checkboxes_widget.hide()
+        self.sample_checkboxes_container.hide()  # Hide container instead of widget
         self.tab_widget.show()
         
         # Update menu checkmarks
@@ -435,7 +502,7 @@ class GreaseAnalyzerApp(QMainWindow):
         
         self.comparison_mode = "grid"
         self.tab_widget.hide()
-        self.sample_checkboxes_widget.show()
+        self.sample_checkboxes_container.show()  # Show container instead of widget
         self.grid_scroll.show()
         self.update_grid_view()
         
@@ -475,19 +542,41 @@ class GreaseAnalyzerApp(QMainWindow):
             checkbox.setStyleSheet("""
                 QCheckBox {
                     color: rgb(220, 225, 230);
-                    font: 10pt "Roboto";
-                    spacing: 5px;
+                    font: 9pt "Roboto";
+                    spacing: 3px;
+                    padding: 3px 8px;
+                    background: rgb(45, 60, 75);
+                    border-radius: 4px;
+                }
+                QCheckBox:hover {
+                    background: rgb(60, 75, 90);
                 }
                 QCheckBox::indicator {
-                    width: 18px;
-                    height: 18px;
+                    width: 16px;
+                    height: 16px;
+                }
+                QCheckBox::indicator:checked {
+                    background: rgb(85, 105, 75);
+                    border: 1px solid rgb(100, 130, 90);
                 }
             """)
             checkbox.stateChanged.connect(self.update_grid_view)
             self.sample_checkboxes_layout.addWidget(checkbox)
             self.sample_checkboxes.append(checkbox)
         
-        self.sample_checkboxes_layout.addStretch()
+        # No stretch needed - keep checkboxes in horizontal line
+    
+    def scroll_checkboxes_left(self):
+        """Scroll the checkbox list to the left"""
+        scrollbar = self.checkboxes_scroll.horizontalScrollBar()
+        # Scroll by 150 pixels to the left
+        scrollbar.setValue(scrollbar.value() - 150)
+    
+    def scroll_checkboxes_right(self):
+        """Scroll the checkbox list to the right"""
+        scrollbar = self.checkboxes_scroll.horizontalScrollBar()
+        # Scroll by 150 pixels to the right
+        scrollbar.setValue(scrollbar.value() + 150)
     
     def update_grid_view(self):
         """
