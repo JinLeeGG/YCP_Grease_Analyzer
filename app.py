@@ -1,26 +1,27 @@
 """
-Grease Analyzer - PyQt6 Desktop Application with Optimized Hybrid AI Analysis
+Grease Analyzer - PyQt6 Desktop Application with Optimized Numerical AI Analysis
 
 MAIN APPLICATION FILE:
 This is the entry point for the Grease Analyzer desktop application.
-Uses an OPTIMIZED HYBRID approach: Fast FTIRAnalyzer (numerical) + Optional LLaVA Enhancement.
+Uses an OPTIMIZED NUMERICAL approach: Fast FTIRDeviationAnalyzer (pure metrics).
 
 KEY FEATURES:
 - Load baseline (reference) and multiple sample CSV files
 - Visualize data overlays with interactive graphs
-- OPTIMIZED AI-powered analysis: <1s numerical + optional LLM enhancement
+- OPTIMIZED numerical AI-powered analysis: <1s per sample
 - Export graphs and generate reports
 
 PERFORMANCE:
-- Core analysis: <1 second per sample (FTIRAnalyzer)
-- With LLM enhancement: 5-15 seconds per sample (optional)
+- Core analysis: <1 second per sample (FTIRDeviationAnalyzer)
 - 10-50x faster than LLM-only approach
-- 100% reliable with automatic fallback
+- 100% reliable with pure numerical analysis
 
 ARCHITECTURE:
 - AnalysisWorker: QThread for non-blocking analysis
 - GreaseAnalyzerApp: Main window class managing UI and data flow
-- Integration with: CSV processor, graph generator, optimized LLM analyzer
+- Integration with: CSV processor, graph generator, optimized numerical analyzer
+
+Note: Image-based LLM analysis has been disabled for faster, more reliable processing.
 """
 
 from PyQt6 import uic
@@ -86,10 +87,10 @@ class ChatWorker(QThread):
 
 class AnalysisWorker(QThread):
     """
-    Background Worker Thread for Optimized Hybrid Analysis
+    Background Worker Thread for Optimized Numerical Analysis
 
-    Uses the production-ready FTIRAnalyzer for fast, accurate numerical analysis (<1s)
-    with optional LLM enhancement for better natural language summaries (5-15s).
+    Uses the production-ready FTIRDeviationAnalyzer for fast, accurate numerical 
+    analysis (<1s per sample) without requiring image generation.
     """
 
     progress = pyqtSignal(int)
@@ -97,15 +98,14 @@ class AnalysisWorker(QThread):
     finished = pyqtSignal(dict)
     error = pyqtSignal(str)
 
-    def __init__(self, analyzer: LLMAnalyzer, graph_paths: List[str], 
+    def __init__(self, analyzer: LLMAnalyzer, 
                  baseline_data: pd.DataFrame, baseline_name: str, 
                  sample_data_list: List[Dict], sample_names: List[str]):
         """
-        Initialize optimized hybrid analysis worker
+        Initialize optimized numerical analysis worker
 
         Args:
-            analyzer: LLMAnalyzer instance (now uses FTIRAnalyzer internally)
-            graph_paths: List of paths to saved graph images
+            analyzer: LLMAnalyzer instance (uses FTIRDeviationAnalyzer internally)
             baseline_data: Baseline DataFrame
             baseline_name: Baseline filename
             sample_data_list: List of dictionaries containing sample dataframes
@@ -113,7 +113,6 @@ class AnalysisWorker(QThread):
         """
         super().__init__()
         self.analyzer = analyzer
-        self.graph_paths = graph_paths
         self.baseline_data = baseline_data
         self.baseline_name = baseline_name
         self.sample_data_list = sample_data_list
@@ -122,20 +121,21 @@ class AnalysisWorker(QThread):
 
     def run(self):
         """
-        Execute optimized hybrid analysis on all samples
+        Execute optimized numerical analysis on all samples
         
         Process:
-        1. Fast numerical analysis with FTIRAnalyzer (<1s per sample)
-        2. Optional LLM enhancement (5-15s per sample, if available)
-        3. Generate executive summary
+        1. Fast numerical analysis with FTIRDeviationAnalyzer (<1s per sample)
+        2. Generate executive summary
+        
+        Note: Image-based LLM enhancement has been disabled for faster processing.
         """
         try:
-            self.status.emit("🔍 Starting optimized hybrid analysis...")
-            total_samples = len(self.graph_paths)
+            self.status.emit("🔍 Starting optimized numerical analysis...")
+            total_samples = len(self.sample_names)
             
             results = {'individual_results': {}, 'summary': ''}
             
-            for i, (graph_path, sample_name) in enumerate(zip(self.graph_paths, self.sample_names)):
+            for i, sample_name in enumerate(self.sample_names):
                 if not self._is_running:
                     return
 
@@ -145,14 +145,14 @@ class AnalysisWorker(QThread):
                 
                 self.status.emit(f"📊 [{i+1}/{total_samples}] Analyzing {sample_name}...")
                 
-                # Use the new optimized analyze_sample method
-                # This runs FTIRAnalyzer first (<1s), then optionally enhances with LLM
+                # Use the optimized analyze_sample method (no image required)
+                # This runs FTIRDeviationAnalyzer (<1s)
                 analysis_result = self.analyzer.analyze_sample(
                     self.baseline_data,
                     sample_df,
                     self.baseline_name,
                     sample_name,
-                    graph_path
+                    image_path=None  # No image generation
                 )
                 
                 # Store the human summary for backward compatibility
@@ -166,8 +166,7 @@ class AnalysisWorker(QThread):
                 
                 # Show timing info
                 time_str = f"{analysis_result['analysis_time']:.2f}s"
-                enhancement_str = " (LLM enhanced)" if analysis_result['llm_enhanced'] else " (fast mode)"
-                self.status.emit(f"✅ [{i+1}/{total_samples}] {sample_name} analyzed in {time_str}{enhancement_str}")
+                self.status.emit(f"✅ [{i+1}/{total_samples}] {sample_name} analyzed in {time_str}")
 
             self.progress.emit(90)
             self.status.emit("📝 Generating executive summary...")
@@ -1400,28 +1399,11 @@ class GreaseAnalyzerApp(QMainWindow):
         # Get current sample only
         current_sample = self.sample_data_list[self.current_sample_index]
         
-        # Save graph for current sample only
-        temp_dir = Path(self.save_directory) / "temp_analysis"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        
         try:
-            self.status_inf.setText("STATUS: Preparing graph for analysis...")
-            
-            # Generate graph for current sample
-            fig = self.graph_generator.create_overlay_graph(
-                self.baseline_data,
-                current_sample['data'],
-                self.baseline_name,
-                current_sample['name']
-            )
-            
-            # Save to temp file
-            graph_filename = f"analysis_{current_sample['name'].replace('.csv', '')}.png"
-            graph_path = temp_dir / graph_filename
-            fig.savefig(graph_path, dpi=300, bbox_inches='tight', facecolor='white')
-            plt.close(fig)
+            self.status_inf.setText("STATUS: Starting numerical analysis...")
             
             # Start worker thread for background analysis (single sample)
+            # No image generation required - purely numerical analysis
             if hasattr(self, 'aiProgress'):
                 self.aiProgress.setValue(0)
             self.aiSummaryText.setText("🔄 Analyzing current sample... Please wait.")
@@ -1430,7 +1412,6 @@ class GreaseAnalyzerApp(QMainWindow):
             # Create and configure worker thread for single sample
             self.analysis_worker = AnalysisWorker(
                 self.llm_analyzer,
-                [str(graph_path)],  # Single graph path
                 self.baseline_data,
                 self.baseline_name,
                 [current_sample],  # Single sample data

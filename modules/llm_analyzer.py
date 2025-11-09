@@ -1,22 +1,22 @@
 """
-Optimized Hybrid FTIR Analysis Module
+Optimized Numerical FTIR Analysis Module
 
-This module uses a PRODUCTION-READY hybrid approach:
-1. Primary Analysis: Fast numerical peak detection with FTIRAnalyzer (<1s)
-2. Optional Enhancement: LLaVA vision model for natural language summaries (5-15s)
-3. Automatic Fallback: Always returns structured results, even if LLM fails
+This module uses a PRODUCTION-READY numerical approach:
+1. Primary Analysis: Fast numerical deviation detection with FTIRDeviationAnalyzer (<1s)
+2. Automatic Fallback: Always returns structured results
 
 KEY FEATURES:
-- 10-50x faster than LLM-only approach
+- 10-50x faster than LLM-based approaches
 - Statistical rigor (3σ peak significance)
 - Critical region monitoring (oxidation, water, glycol)
 - Rule-based decision logic with confidence scores
-- 100% reliable (no LLM dependency for core analysis)
+- 100% reliable (no LLM dependency)
 
 PERFORMANCE:
-- Core analysis: <1s (FTIRAnalyzer)
-- With LLM enhancement: 5-15s (optional)
+- Core analysis: <1s (FTIRDeviationAnalyzer)
 - Batch processing: Fully parallelizable
+
+Note: Image-based LLM enhancement has been disabled for faster, more reliable processing.
 """
 
 import sys
@@ -53,17 +53,16 @@ from modules.ftir_peak_analyzer import (
 
 class LLMAnalyzer:
     """
-    Optimized Hybrid FTIR Analyzer
+    Optimized Numerical FTIR Analyzer
     
     Architecture:
-    1. FTIRAnalyzer (Primary): Fast numerical analysis (<1s, always works)
-    2. LLaVA (Optional): Natural language enhancement (5-15s, if available)
-    3. Automatic Fallback: Returns structured results regardless of LLM status
+    1. FTIRDeviationAnalyzer (Primary): Fast numerical analysis (<1s, always works)
+    2. No LLM required: Pure numerical analysis for maximum speed and reliability
     
     Usage:
         analyzer = LLMAnalyzer()
         result = analyzer.analyze_sample(baseline_df, sample_df, ...)
-        # Returns structured results in <1s, with optional LLM enhancement
+        # Returns structured results in <1s
     """
     
     def __init__(self, model: str = "llava:7b-v1.6", use_llm: bool = True):
@@ -84,10 +83,7 @@ class LLMAnalyzer:
         # Keep legacy peak analyzer for compatibility (secondary)
         self.ftir_analyzer = FTIRAnalyzer(AnalysisConfig())
         
-        if self.ollama_available:
-            print(f"✅ Hybrid Mode: FTIRDeviationAnalyzer + LLM ({self.model})")
-        else:
-            print(f"✅ Fast Mode: FTIRDeviationAnalyzer only (LLM disabled or unavailable)")
+        print(f"✅ Numerical Mode: FTIRDeviationAnalyzer (image-based LLM analysis disabled)")
     
     def _check_ollama(self) -> bool:
         """Check Ollama Availability"""
@@ -115,26 +111,27 @@ class LLMAnalyzer:
                       sample_name: str,
                       image_path: Optional[str] = None) -> Dict:
         """
-        Analyze FTIR sample using deviation-focused hybrid approach
+        Analyze FTIR sample using deviation-focused numerical approach
         
         Process:
         1. Run DEVIATION analysis (FTIRDeviationAnalyzer) - <1s, pure metrics
-        2. Optionally enhance with LLM for translation/interpretation - 5-15s
-        3. Return structured deviation results (ΔX, ΔY, multi-metric category)
+        2. Return structured deviation results (ΔX, ΔY, multi-metric category)
+        
+        Note: Image-based LLM analysis has been disabled. Analysis is purely numerical.
         
         Args:
             baseline_df: Baseline spectrum DataFrame (columns: X, Y)
             sample_df: Sample spectrum DataFrame (columns: X, Y)
             baseline_name: Name of baseline file
             sample_name: Name of sample file
-            image_path: Optional path to graph image (for LLM enhancement)
+            image_path: (Deprecated, ignored) Optional path to graph image
             
         Returns:
             Dictionary containing:
             - deviation_analysis: Complete deviation metrics (ΔX, ΔY, correlation, etc.)
             - multi_metric_category: Primary decision (GOOD/REQUIRES_ATTENTION/CRITICAL/etc.)
             - human_summary: Readable summary (deviation-focused)
-            - llm_enhanced: Boolean indicating if LLM was used
+            - llm_enhanced: Boolean (always False - image analysis disabled)
             - analysis_time: Total time taken
         """
         start_time = time.time()
@@ -167,24 +164,12 @@ class LLMAnalyzer:
                 'analysis_time': time.time() - start_time
             }
         
-        # Step 2: Optional LLM enhancement for natural language translation
-        llm_summary = None
+        # Image-based LLM analysis has been disabled
+        # Analysis is now purely numerical for faster and more reliable results
         llm_enhanced = False
         
-        if self.ollama_available and image_path and self.use_llm:
-            try:
-                llm_summary = self._enhance_deviation_with_llm(
-                    deviation_result, image_path, baseline_name, sample_name
-                )
-                llm_enhanced = True
-                llm_time = time.time() - start_time - deviation_time
-                print(f"✅ LLM translation complete in {llm_time:.2f}s")
-            except Exception as e:
-                print(f"⚠️ LLM enhancement failed: {str(e)}, using fallback")
-                llm_enhanced = False
-        
-        # Step 3: Choose best summary (LLM-translated or raw deviation summary)
-        final_summary = llm_summary if llm_enhanced else deviation_result['human_summary']
+        # Use the numerical deviation summary
+        final_summary = deviation_result['human_summary']
         
         total_time = time.time() - start_time
         
