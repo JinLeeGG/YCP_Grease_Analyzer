@@ -245,7 +245,15 @@ ollama pull llava:7b-v1.6
 
 ## 🔄 Updates & Version History
 
-### v2.0 - Deviation-Focused Implementation (Current)
+### v2.1 - Improved Categorization Logic (Current)
+
+- ✅ **Smart BASELINE_MISMATCH detection** - Distinguishes different formulations from contamination
+- ✅ **Degradation pattern recognition** - Identifies oxidation + water signature
+- ✅ **Systematic vs localized deviation analysis** - Better context-aware decisions
+- ✅ **Actionable warnings** - "Use baseline from same grease family"
+- 📚 See [IMPROVED_CATEGORIZATION_SUMMARY.md](docs/IMPROVED_CATEGORIZATION_SUMMARY.md) for details
+
+### v2.0 - Deviation-Focused Implementation
 
 - ✅ Pure deviation metrics (ΔX, ΔY)
 - ✅ Multi-metric categorization
@@ -284,4 +292,4 @@ See [LICENSE](LICENSE) file for details.
 ---
 
 **Last Updated:** November 9, 2025  
-**Version:** 2.0 - Deviation Analysis System
+**Version:** 2.1 - Improved Categorization Logic

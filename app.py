@@ -223,7 +223,10 @@ class GreaseAnalyzerApp(QMainWindow):
         # Initialize module instances
         self.csv_processor = CSVProcessor()          # CSV file loading and validation
         self.graph_generator = GraphGenerator()      # Matplotlib graph creation
-        self.llm_analyzer = LLMAnalyzer()           # Local LLM (Ollama) for AI analysis
+        self.llm_analyzer = LLMAnalyzer(
+            model=LLM_CONFIG.get('model', 'llava:7b-v1.6'),
+            use_llm=LLM_CONFIG.get('use_llm_enhancement', True)
+        )  # Local LLM (Ollama) for AI analysis - reads config
         
         # Background worker threads
         self.analysis_worker: Optional[AnalysisWorker] = None

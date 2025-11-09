@@ -56,7 +56,7 @@ LLM_CONFIG = {
     'num_predict': 1000,              # Maximum tokens to generate per request
     'num_ctx': 2048,                  # Context window size
     'max_workers': 3,                 # Number of parallel threads for batch processing
-    'use_llm_enhancement': True,      # Enable optional LLM enhancement (can be disabled for speed)
+    'use_llm_enhancement': False,     # DISABLED: Use False for instant analysis (deviation metrics only)
 }
 
 # ============================================================================
