@@ -26,7 +26,8 @@ ARCHITECTURE:
 from PyQt6 import uic
 from PyQt6.QtWidgets import (QMainWindow, QApplication, QFileDialog, QMessageBox, 
                               QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, 
-                              QPushButton, QCheckBox, QScrollArea, QGridLayout, QLabel)
+                              QPushButton, QCheckBox, QScrollArea, QGridLayout, QLabel,
+                              QSizePolicy)
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QPixmap, QIcon
 import sys
@@ -395,6 +396,50 @@ class GreaseAnalyzerApp(QMainWindow):
         self.scroll_right_btn.clicked.connect(self.scroll_checkboxes_right)
         container_layout.addWidget(self.scroll_right_btn)
         
+        # Select All button
+        self.select_all_btn = QPushButton("Select All")
+        self.select_all_btn.setFixedSize(80, 40)
+        self.select_all_btn.setStyleSheet("""
+            QPushButton {
+                background: rgb(60, 100, 80);
+                color: rgb(220, 225, 230);
+                border: 1px solid rgb(80, 120, 100);
+                border-radius: 5px;
+                font: 9pt "Roboto";
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: rgb(75, 115, 95);
+            }
+            QPushButton:pressed {
+                background: rgb(85, 125, 105);
+            }
+        """)
+        self.select_all_btn.clicked.connect(self.select_all_samples)
+        container_layout.addWidget(self.select_all_btn)
+        
+        # Deselect All button
+        self.deselect_all_btn = QPushButton("Clear All")
+        self.deselect_all_btn.setFixedSize(80, 40)
+        self.deselect_all_btn.setStyleSheet("""
+            QPushButton {
+                background: rgb(90, 60, 60);
+                color: rgb(220, 225, 230);
+                border: 1px solid rgb(110, 80, 80);
+                border-radius: 5px;
+                font: 9pt "Roboto";
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: rgb(105, 75, 75);
+            }
+            QPushButton:pressed {
+                background: rgb(120, 90, 90);
+            }
+        """)
+        self.deselect_all_btn.clicked.connect(self.deselect_all_samples)
+        container_layout.addWidget(self.deselect_all_btn)
+        
         self.sample_checkboxes_container.hide()  # Hidden initially
         self.sample_checkboxes_container.setStyleSheet("""
             QWidget {
@@ -538,7 +583,7 @@ class GreaseAnalyzerApp(QMainWindow):
         # Create checkbox for each sample
         for sample in self.sample_data_list:
             checkbox = QCheckBox(sample['name'])
-            checkbox.setChecked(True)  # All checked by default
+            checkbox.setChecked(False)  # All unchecked by default
             checkbox.setStyleSheet("""
                 QCheckBox {
                     color: rgb(220, 225, 230);
@@ -577,6 +622,18 @@ class GreaseAnalyzerApp(QMainWindow):
         scrollbar = self.checkboxes_scroll.horizontalScrollBar()
         # Scroll by 150 pixels to the right
         scrollbar.setValue(scrollbar.value() + 150)
+    
+    def select_all_samples(self):
+        """Select all sample checkboxes in grid comparison mode"""
+        for checkbox in self.sample_checkboxes:
+            checkbox.setChecked(True)
+        self.status_inf.setText("STATUS: All samples selected")
+    
+    def deselect_all_samples(self):
+        """Deselect all sample checkboxes in grid comparison mode"""
+        for checkbox in self.sample_checkboxes:
+            checkbox.setChecked(False)
+        self.status_inf.setText("STATUS: All samples deselected")
     
     def update_grid_view(self):
         """
@@ -660,7 +717,10 @@ class GreaseAnalyzerApp(QMainWindow):
             canvas = FigureCanvas(fig)
             canvas.setMinimumSize(300, 250)
             
-            container_layout.addWidget(canvas)
+            # Allow canvas to expand and fill available space
+            canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            
+            container_layout.addWidget(canvas, 1)  # Stretch factor 1 to fill space
             
             # Add to grid
             self.grid_layout.addWidget(container, row, col)
