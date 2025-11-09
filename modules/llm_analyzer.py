@@ -34,7 +34,14 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-# Import the optimized FTIR analyzer
+# Import BOTH analyzers:
+# - FTIRDeviationAnalyzer: Primary (pure deviation metrics, no quality judgments)
+# - FTIRAnalyzer: Secondary/legacy (peak detection with recommendations)
+from modules.ftir_deviation_analyzer import (
+    FTIRDeviationAnalyzer,
+    DeviationConfig,
+    load_csv_spectrum_from_df as load_spectrum_deviation
+)
 from modules.ftir_peak_analyzer import (
     FTIRAnalyzer, 
     AnalysisConfig, 
@@ -71,13 +78,16 @@ class LLMAnalyzer:
         self.use_llm = use_llm
         self.ollama_available = self._check_ollama() if use_llm else False
         
-        # Initialize core FTIR analyzer (always available)
+        # Initialize DEVIATION analyzer (primary - pure metrics)
+        self.deviation_analyzer = FTIRDeviationAnalyzer(DeviationConfig())
+        
+        # Keep legacy peak analyzer for compatibility (secondary)
         self.ftir_analyzer = FTIRAnalyzer(AnalysisConfig())
         
         if self.ollama_available:
-            print(f"✅ Hybrid Mode: FTIRAnalyzer + LLM ({self.model})")
+            print(f"✅ Hybrid Mode: FTIRDeviationAnalyzer + LLM ({self.model})")
         else:
-            print(f"✅ Fast Mode: FTIRAnalyzer only (LLM disabled or unavailable)")
+            print(f"✅ Fast Mode: FTIRDeviationAnalyzer only (LLM disabled or unavailable)")
     
     def _check_ollama(self) -> bool:
         """Check Ollama Availability"""
@@ -105,12 +115,12 @@ class LLMAnalyzer:
                       sample_name: str,
                       image_path: Optional[str] = None) -> Dict:
         """
-        Analyze FTIR sample using hybrid approach
+        Analyze FTIR sample using deviation-focused hybrid approach
         
         Process:
-        1. Run fast numerical analysis (FTIRAnalyzer) - <1s, always succeeds
-        2. Optionally enhance with LLM for better language - 5-15s, if available
-        3. Return structured results with both numerical facts and summaries
+        1. Run DEVIATION analysis (FTIRDeviationAnalyzer) - <1s, pure metrics
+        2. Optionally enhance with LLM for translation/interpretation - 5-15s
+        3. Return structured deviation results (ΔX, ΔY, multi-metric category)
         
         Args:
             baseline_df: Baseline spectrum DataFrame (columns: X, Y)
@@ -121,8 +131,9 @@ class LLMAnalyzer:
             
         Returns:
             Dictionary containing:
-            - ftir_analysis: Complete numerical analysis results
-            - human_summary: Readable summary (from FTIRAnalyzer or LLM)
+            - deviation_analysis: Complete deviation metrics (ΔX, ΔY, correlation, etc.)
+            - multi_metric_category: Primary decision (GOOD/REQUIRES_ATTENTION/CRITICAL/etc.)
+            - human_summary: Readable summary (deviation-focused)
             - llm_enhanced: Boolean indicating if LLM was used
             - analysis_time: Total time taken
         """
@@ -130,66 +141,180 @@ class LLMAnalyzer:
         
         print(f"\n🔍 Analyzing {sample_name}...")
         
-        # Step 1: Core numerical analysis (ALWAYS runs, <1s)
+        # Step 1: DEVIATION analysis (PRIMARY - pure metrics, no quality judgments)
         try:
-            baseline_wn, baseline_abs = load_csv_spectrum_from_df(baseline_df)
-            sample_wn, sample_abs = load_csv_spectrum_from_df(sample_df)
+            baseline_wn, baseline_abs = load_spectrum_deviation(baseline_df)
+            sample_wn, sample_abs = load_spectrum_deviation(sample_df)
             
-            ftir_result = self.ftir_analyzer.analyze_complete(
+            deviation_result = self.deviation_analyzer.analyze(
                 baseline_wn, baseline_abs,
                 sample_wn, sample_abs,
                 baseline_name, sample_name
             )
             
-            ftir_time = time.time() - start_time
-            print(f"✅ Numerical analysis complete in {ftir_time:.2f}s")
+            deviation_time = time.time() - start_time
+            print(f"✅ Deviation analysis complete in {deviation_time:.2f}s")
+            print(f"   Category: {deviation_result['multi_metric_category']['category']}")
+            print(f"   Correlation: {deviation_result['baseline_compatibility']['correlation']:.3f}")
             
         except Exception as e:
-            print(f"❌ Numerical analysis failed: {str(e)}")
+            print(f"❌ Deviation analysis failed: {str(e)}")
             return {
                 'error': f"Analysis failed: {str(e)}",
-                'ftir_analysis': None,
+                'deviation_analysis': None,
                 'human_summary': f"Error analyzing {sample_name}: {str(e)}",
                 'llm_enhanced': False,
                 'analysis_time': time.time() - start_time
             }
         
-        # Step 2: Optional LLM enhancement (only if available and image provided)
+        # Step 2: Optional LLM enhancement for natural language translation
         llm_summary = None
         llm_enhanced = False
         
         if self.ollama_available and image_path and self.use_llm:
             try:
-                llm_summary = self._enhance_with_llm(ftir_result, image_path, baseline_name, sample_name)
+                llm_summary = self._enhance_deviation_with_llm(
+                    deviation_result, image_path, baseline_name, sample_name
+                )
                 llm_enhanced = True
-                llm_time = time.time() - start_time - ftir_time
-                print(f"✅ LLM enhancement complete in {llm_time:.2f}s")
+                llm_time = time.time() - start_time - deviation_time
+                print(f"✅ LLM translation complete in {llm_time:.2f}s")
             except Exception as e:
                 print(f"⚠️ LLM enhancement failed: {str(e)}, using fallback")
                 llm_enhanced = False
         
-        # Step 3: Choose best summary
-        final_summary = llm_summary if llm_enhanced else ftir_result['human_summary']
+        # Step 3: Choose best summary (LLM-translated or raw deviation summary)
+        final_summary = llm_summary if llm_enhanced else deviation_result['human_summary']
         
         total_time = time.time() - start_time
         
         return {
-            'ftir_analysis': ftir_result,
+            'deviation_analysis': deviation_result,
+            'multi_metric_category': deviation_result['multi_metric_category'],
+            'baseline_compatibility': deviation_result['baseline_compatibility'],
+            'critical_regions': deviation_result['critical_regions'],
+            'outliers': deviation_result['outliers'],
             'human_summary': final_summary,
             'llm_enhanced': llm_enhanced,
             'analysis_time': total_time,
-            'recommendation': ftir_result['recommendation'],
-            'peak_matches': ftir_result['peak_matches'],
-            'critical_regions': ftir_result['critical_regions']
+            # Legacy compatibility fields (for app.py)
+            'recommendation': {
+                'action': deviation_result['multi_metric_category']['category'],
+                'confidence': deviation_result['multi_metric_category']['confidence'],
+                'reasoning': '\n'.join(deviation_result['multi_metric_category']['reasoning'])
+            }
         }
+    
+    def _enhance_deviation_with_llm(self, deviation_result: Dict, image_path: str, 
+                                    baseline_name: str, sample_name: str) -> str:
+        """
+        Enhance DEVIATION analysis with LLM for natural language translation
+        
+        AI Role: Translate technical deviation metrics into user-friendly language
+        AI DOES NOT: Make quality judgments or recommendations
+        """
+        import ollama
+        
+        # Read and encode image
+        with open(image_path, 'rb') as img_file:
+            image_data = base64.b64encode(img_file.read()).decode('utf-8')
+        
+        # Create prompt with deviation facts
+        prompt = self._create_deviation_llm_prompt(deviation_result, baseline_name, sample_name)
+        
+        # Call LLaVA
+        response = ollama.chat(
+            model=self.model,
+            messages=[{
+                'role': 'user',
+                'content': prompt,
+                'images': [image_data]
+            }],
+            options={
+                'temperature': 0.1,  # Low temperature for factual translation
+                'num_predict': 600,
+                'num_ctx': 2048,
+            }
+        )
+        
+        return response['message']['content']
+    
+    def _create_deviation_llm_prompt(self, deviation_result: Dict, 
+                                    baseline_name: str, sample_name: str) -> str:
+        """Create LLM prompt for deviation translation (NOT quality assessment)"""
+        
+        compatibility = deviation_result['baseline_compatibility']
+        category = deviation_result['multi_metric_category']
+        regions = deviation_result['critical_regions']
+        outliers = deviation_result['outliers']
+        
+        prompt = f"""You are an FTIR spectroscopy translator. Your role is to TRANSLATE technical deviation metrics into user-friendly language.
+
+IMPORTANT: You are NOT making quality judgments. Simply explain WHERE the spectra differ and WHAT the deviation metrics mean.
+
+═══════════════════════════════════════════════════════════════════
+DEVIATION ANALYSIS RESULTS (Translate these facts):
+═══════════════════════════════════════════════════════════════════
+
+Sample: {sample_name}
+Baseline: {baseline_name}
+
+BASELINE COMPATIBILITY:
+- Spectral Correlation (r): {compatibility['correlation']:.3f}
+- Status: {compatibility['level'] or 'Compatible'}
+
+MULTI-METRIC CATEGORIZATION:
+- Category: {category['category']}
+- Confidence: {category['confidence']:.0%}
+- Metrics:
+  * Max ΔY (vertical deviation): {category['metrics']['max_delta_y']:.3f} A
+  * Max ΔX (horizontal shift): {category['metrics']['max_delta_x']:.1f} cm⁻¹
+  * ΔX:ΔY Ratio: {category['metrics']['ratio']:.1f}
+  * Critical outliers: {category['metrics']['critical_outliers']}
+
+CRITICAL REGIONS:
+"""
+        
+        for region in regions:
+            prompt += f"""
+{region['region_name'].replace('_', ' ').title()} ({region['region_range'][0]}-{region['region_range'][1]} cm⁻¹):
+- ΔY: {region['max_delta_y']:.3f} A at {region['max_delta_y_wavenumber']:.0f} cm⁻¹ ({region['max_delta_y_pct']:+.1f}%)
+- ΔX: {region['max_delta_x']:.1f} cm⁻¹
+- ΔX:ΔY Ratio: {region['delta_x_delta_y_ratio']:.1f}
+- Alert: {region['alert_level'].upper()}
+"""
+        
+        if outliers:
+            critical_outliers = [o for o in outliers if o['severity'] == 'critical']
+            prompt += f"\nOUTLIERS: {len(outliers)} total ({len(critical_outliers)} critical)\n"
+        
+        prompt += f"""
+═══════════════════════════════════════════════════════════════════
+TASK: Write 3-4 sentences that:
+1. State the category and what it means (GOOD/REQUIRES_ATTENTION/CRITICAL/etc.)
+2. Explain the main deviations using ΔY and ΔX values
+3. Interpret the ΔX:ΔY ratio (shift-dominant vs intensity-dominant)
+4. If baseline mismatch, explain this may be different formulation (NOT bad)
+
+DO NOT:
+- Make quality judgments beyond the given category
+- Recommend actions (that's the user's decision)
+- Assess oxidation severity (just report ΔY values)
+
+GRAPH REFERENCE:
+- GREEN LINE: Baseline ({baseline_name})
+- RED LINE: Sample ({sample_name})
+- Look for vertical gaps (ΔY) and horizontal shifts (ΔX)
+"""
+        
+        return prompt
     
     def _enhance_with_llm(self, ftir_result: Dict, image_path: str, 
                           baseline_name: str, sample_name: str) -> str:
         """
-        Enhance FTIR analysis with LLM natural language
+        LEGACY METHOD: Enhance peak analyzer results with LLM
         
-        Uses structured numerical facts from FTIRAnalyzer and asks LLM
-        to create a professional maintenance-focused summary.
+        This is kept for backward compatibility but deviation_analyzer is preferred.
         """
         import ollama
         
